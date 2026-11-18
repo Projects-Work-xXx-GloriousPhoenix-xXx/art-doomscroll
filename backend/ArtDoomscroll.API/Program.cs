@@ -1,5 +1,6 @@
 using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
+using ArtDoomscroll.API.Features;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 
@@ -29,5 +30,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+AddArtist.Map(app);
 
 app.Run();
