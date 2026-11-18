@@ -1,3 +1,4 @@
+using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -10,6 +11,8 @@ builder.Services.AddDbContext<AppDoomscrollDbContext>(options =>
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+builder.Services.AddScoped<ICurrentUser, DevCurrentUser>();
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -18,6 +21,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    await DevDataSeeder.SeedAsync(app.Services);
 }
 
 app.UseHttpsRedirection();
