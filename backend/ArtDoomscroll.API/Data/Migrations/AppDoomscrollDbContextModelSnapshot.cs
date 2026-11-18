@@ -62,8 +62,10 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.Property<string>("Handle")
                         .HasColumnType("text");
 
-                    b.Property<int>("Platform")
-                        .HasColumnType("integer");
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ProfileUrl")
                         .IsRequired()
@@ -117,8 +119,10 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -141,8 +145,10 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -170,8 +176,10 @@ namespace ArtDoomscroll.API.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Platform")
-                        .HasColumnType("integer");
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasColumnType("text");

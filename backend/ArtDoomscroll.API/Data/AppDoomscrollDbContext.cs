@@ -1,4 +1,5 @@
 ﻿using ArtDoomscroll.API.Entities;
+using ArtDoomscroll.API.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtDoomscroll.API.Data;
@@ -19,5 +20,12 @@ public class AppDoomscrollDbContext(DbContextOptions<AppDoomscrollDbContext> opt
 
         b.Entity<UserArtist>().HasKey(x => new { x.UserId, x.ArtistId });
         b.Entity<UserWork>().HasKey(x => new { x.UserId, x.WorkId });
+    }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<Platform>().HaveConversion<string>().HaveMaxLength(32);
+        configurationBuilder.Properties<ArtistStatus>().HaveConversion<string>().HaveMaxLength(32);
+        configurationBuilder.Properties<WorkStatus>().HaveConversion<string>().HaveMaxLength(32);
     }
 }
