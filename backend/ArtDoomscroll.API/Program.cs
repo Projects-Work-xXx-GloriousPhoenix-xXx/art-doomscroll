@@ -2,6 +2,7 @@ using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Features;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
     await DevDataSeeder.SeedAsync(app.Services);
 }
 
