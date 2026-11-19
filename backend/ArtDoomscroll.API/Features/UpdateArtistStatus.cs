@@ -1,5 +1,6 @@
 ﻿using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
+using ArtDoomscroll.API.Entities;
 using ArtDoomscroll.API.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,23 +14,29 @@ public static class UpdateArtistStatus
     private static async Task<IResult> Handle(Guid artistId, Request req,
         AppDoomscrollDbContext db, ICurrentUser currentUser, CancellationToken ct)
     {
+        var validationErrors = new Dictionary<string, string[]>();
         if (req.Status is null)
         {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["status"] = ["Required field"]
-            });
+            validationErrors.Add("status", ["Required field"]);
+        }
+        if (validationErrors.Count != 0)
+        {
+            return Results.ValidationProblem(validationErrors);
         }
 
+        var status = req.Status!.Value;
         var userArtist = await db.UserArtists
             .FirstOrDefaultAsync(ua => ua.ArtistId == artistId && ua.UserId == currentUser.UserId, ct);
 
         if (userArtist is null)
         {
-            return Results.NotFound();
+            return Results.Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Artist not found",
+                detail: $"Artist with id '{artistId}' was not found in your library.");
         }
 
-        userArtist.Status = req.Status.Value;
+        userArtist.Status = status;
         userArtist.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(ct);

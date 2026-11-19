@@ -51,5 +51,6 @@ UpdateArtistStatus.Map(app);
 ListArtists.Map(app);
 
 AddWork.Map(app);
+UpdateWorkStatus.Map(app);
 
 app.Run();

@@ -16,7 +16,7 @@
 /works
 ├── POST   /works                                [done]     save work (profile + Work + UserWork, no UserArtist)
 ├── GET    /works                                [mvp]      my works (paging; later ?status, ?platform, ?artistId)
-├── PATCH  /works/{id}/status                    [mvp]      change status (Queued / Liked / Disliked)
+├── PATCH  /works/{id}/status                    [done]     change status (Queued / Liked / Disliked)
 ├── DELETE /works/{id}                           [mvp]      remove work from my library (deletes UserWork)
 └── GET    /works/lookup?platform=&externalId=   [backlog]  "is this work already saved?" (for the extension)
 
