@@ -2,13 +2,14 @@
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Entities;
 using ArtDoomscroll.API.Enums;
+using ArtDoomscroll.API.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtDoomscroll.API.Features;
 
 public static class AddArtist
 {
-    public record Request(Platform Platform, string ExternalId, string ProfileUrl,
+    public record Request(Platform? Platform, string ExternalId, string ProfileUrl,
                           string? Handle, string? DisplayName, string? AvatarUrl, ArtistStatus? Status);
 
     public record Response(Guid ArtistId, Guid ProfileId, ArtistStatus Status, bool IsNew);
@@ -19,54 +20,34 @@ public static class AddArtist
                                               ICurrentUser currentUser, CancellationToken ct)
     {
         var validationErrors = new Dictionary<string, string[]>();
+        if (req.Platform is null)
+        {
+            validationErrors["platform"] = ["Required field"];
+        }
         if (string.IsNullOrWhiteSpace(req.ExternalId))
         {
-            validationErrors["ExternalId"] = ["Required field"];
+            validationErrors["externalId"] = ["Required field"];
         }
         if (string.IsNullOrWhiteSpace(req.ProfileUrl))
         {
-            validationErrors["ProfileUrl"] = ["Required field"];
+            validationErrors["profileUrl"] = ["Required field"];
         }
         if (validationErrors.Count > 0)
         {
             return Results.ValidationProblem(validationErrors);
         }
 
-        var profile = await db.ArtistProfiles
-            .FirstOrDefaultAsync(a => a.Platform == req.Platform && a.ExternalId == req.ExternalId, ct);
+        var platform = req.Platform!.Value;
+        var (profile, profileIsNew) = await ArtistProfileResolver.FindOrCreateAsync(
+            db, platform, req.ExternalId, req.ProfileUrl,
+            req.Handle, req.DisplayName, req.AvatarUrl, ct);
 
-        if (profile is null)
-        {
-            profile = new ArtistProfile
-            {
-                Platform = req.Platform,
-                ExternalId = req.ExternalId,
-                ProfileUrl = req.ProfileUrl,
-                Handle = req.Handle,
-                DisplayName = req.DisplayName,
-                AvatarUrl = req.AvatarUrl,
-            };
-
-            db.Artists.Add(new Artist
-            {
-                DisplayName = req.DisplayName ?? req.Handle ?? req.ExternalId,
-                Profiles = [profile]
-            });
-        }
-        else
-        {
-            profile.Handle = req.Handle ?? profile.Handle;
-            profile.DisplayName = req.DisplayName ?? profile.DisplayName;
-            profile.AvatarUrl = req.AvatarUrl ?? profile.AvatarUrl;
-            profile.ProfileUrl = req.ProfileUrl;
-            profile.UpdatedAt = DateTime.UtcNow;
-        }
-
-        var userArtist = await db.UserArtists
-            .FirstOrDefaultAsync(ua => ua.UserId == currentUser.UserId && ua.ArtistId == profile.ArtistId, ct);
+        var userArtist = profileIsNew
+            ? null
+            : await db.UserArtists.FirstOrDefaultAsync(
+                ua => ua.UserId == currentUser.UserId && ua.ArtistId == profile.ArtistId, ct);
 
         var isNew = userArtist is null;
-
         if (isNew)
         {
             userArtist = new UserArtist
@@ -78,14 +59,17 @@ public static class AddArtist
 
             db.UserArtists.Add(userArtist);
         }
+        else if (req.Status is not null)
+        {
+            userArtist!.Status = req.Status.Value;
+            userArtist.UpdatedAt = DateTime.UtcNow;
+        }
 
         await db.SaveChangesAsync(ct);
 
-        if (isNew)
-        {
-            return Results.Created($"/artists/{profile.ArtistId}", new Response(profile.ArtistId, profile.Id, userArtist!.Status, true));
-        }
-
-        return Results.Ok(new Response(profile.ArtistId, profile.Id, userArtist!.Status, false));
+        var response = new Response(profile.ArtistId, profile.Id, userArtist!.Status, isNew);
+        return isNew
+            ? Results.Created($"/artists/{profile.ArtistId}", response)
+            : Results.Ok(response);
     }
 }
