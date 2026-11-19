@@ -1,5 +1,6 @@
 using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
+using ArtDoomscroll.API.Errors;
 using ArtDoomscroll.API.Features;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,12 @@ builder.Services.AddOpenApi(options =>
             : OpenApiOptions.CreateDefaultSchemaReferenceId(typeInfo);
 });
 
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
