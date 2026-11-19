@@ -1,6 +1,7 @@
 using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Features;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
@@ -16,7 +17,13 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddScoped<ICurrentUser, DevCurrentUser>();
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.CreateSchemaReferenceId = typeInfo =>
+        typeInfo.Type.IsNested
+            ? $"{typeInfo.Type.DeclaringType!.Name}{typeInfo.Type.Name}"
+            : OpenApiOptions.CreateDefaultSchemaReferenceId(typeInfo);
+});
 
 var app = builder.Build();
 
@@ -34,5 +41,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 AddArtist.Map(app);
+UpdateArtistStatus.Map(app);
 
 app.Run();
