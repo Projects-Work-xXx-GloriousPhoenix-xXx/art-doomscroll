@@ -3,19 +3,18 @@
 ```text
 /artists
 ├── POST   /artists                              [done]     add artist (find-or-create profile + UserArtist)
-├── GET    /artists                              [done]     my artists (paging; later ?status, ?platform, ?search)
+├── GET    /artists                              [done]     my artists (paging, ?status, ?platform, ?search)
 ├── GET    /artists/{id}                         [mvp]      artist details: profiles, status, note
 ├── PATCH  /artists/{id}/status                  [done]     change status (Queued / Watching / Seen)
 ├── PATCH  /artists/{id}/note                    [mvp]      note on artist
 ├── DELETE /artists/{id}                         [mvp]      remove artist from my library (deletes UserArtist, not Artist)
-├── GET    /artists/{id}/works                   [mvp]      my saved works by this artist
 ├── POST   /artists/{id}/profiles                [backlog]  attach a profile from another platform to this artist
 ├── POST   /artists/{id}/merge/{otherId}         [backlog]  merge two artists into one
 └── GET    /artists/lookup?platform=&externalId= [backlog]  "do I already have this profile?" (for the extension)
 
 /works
 ├── POST   /works                                [done]     save work (profile + Work + UserWork, no UserArtist)
-├── GET    /works                                [mvp]      my works (paging; later ?status, ?platform, ?artistId)
+├── GET    /works                                [done]     my works (paging, ?status, ?platform, ?artistId, ?search)
 ├── PATCH  /works/{id}/status                    [done]     change status (Queued / Liked / Disliked)
 ├── DELETE /works/{id}                           [mvp]      remove work from my library (deletes UserWork)
 └── GET    /works/lookup?platform=&externalId=   [backlog]  "is this work already saved?" (for the extension)
@@ -38,4 +37,7 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
   Exceptions: `profiles` and `merge` change the shared catalog itself.
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
+- List filters are optional and combined with AND; no filter means no restriction.
+  `?search=` is case-insensitive (works: title, artist name, handle; artists: name, any profile's handle or display name).
+  Paging: `?page=` (1-based) and `?pageSize=` (1..100, default 10); responses are wrapped in `Page<T>`.
 - Validation errors return `400` ProblemDetails with camelCase keys; nested fields use dot notation (`artist.externalId`).

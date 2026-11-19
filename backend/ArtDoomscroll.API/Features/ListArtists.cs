@@ -4,6 +4,7 @@ using ArtDoomscroll.API.Enums;
 using ArtDoomscroll.API.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileSystemGlobbing.Internal;
 
 namespace ArtDoomscroll.API.Features;
 
@@ -19,17 +20,43 @@ public static class ListArtists
         DateTime AddedAt,
         List<ArtistProfileDto> Profiles);
 
+    public record Query(
+        int Page = 1,
+        int PageSize = 10,
+        ArtistStatus? Status = null,
+        Platform? Platform = null,
+        string? Search = null);
+
     public static void Map(IEndpointRouteBuilder app) => app.MapGet("/artists", Handle);
-    private static async Task<IResult> Handle(AppDoomscrollDbContext db, ICurrentUser currentUser, CancellationToken ct,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+    private static async Task<IResult> Handle([AsParameters] Query q,
+        AppDoomscrollDbContext db, ICurrentUser currentUser, CancellationToken ct)
     {
-        page = Math.Max(page, 1);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var page = Math.Max(q.Page, 1);
+        var pageSize = Math.Clamp(q.PageSize, 1, 100);
 
         var query = db.UserArtists
             .AsNoTracking()
             .Where(ua => ua.UserId == currentUser.UserId);
+
+        if (q.Status is not null)
+        {
+            query = query.Where(ua => ua.Status == q.Status);
+        }
+
+        if (q.Platform is not null)
+        {
+            query = query.Where(ua => ua.Artist.Profiles.Any(p => p.Platform == q.Platform));
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.Search))
+        {
+            var pattern = $"%{q.Search.Trim()}%";
+            query = query.Where(ua =>
+                EF.Functions.ILike(ua.Artist.DisplayName, pattern) ||
+                ua.Artist.Profiles.Any(p =>
+                    EF.Functions.ILike(p.Handle!, pattern) ||
+                    EF.Functions.ILike(p.DisplayName!, pattern)));
+        }
 
         var totalCount = await query.CountAsync(ct);
         

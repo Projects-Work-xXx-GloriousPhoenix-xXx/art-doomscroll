@@ -1,0 +1,200 @@
+@baseUrl = http://localhost:5256
+
+### ============================================================
+### Seed: run these first, top to bottom
+### ============================================================
+
+### Artist B — added to my library as Watching
+# @name artistB
+POST {{baseUrl}}/artists
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-artist-B",
+  "profileUrl": "https://www.pixiv.net/users/test-artist-B",
+  "handle": "artist_b",
+  "displayName": "Artist B",
+  "status": "Watching"
+}
+
+### Work 001 by artist A — A goes to the catalog, not to my library
+# @name work001
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-001",
+  "url": "https://www.pixiv.net/artworks/test-work-001",
+  "title": "Test sunset",
+  "thumbnailUrl": "https://example.com/thumb-001.jpg",
+  "artist": {
+    "externalId": "test-artist-A",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-A",
+    "handle": "artist_a",
+    "displayName": "Artist A"
+  }
+}
+
+### Work 002 by artist B — expect artistStatus: Watching
+# @name work002
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-002",
+  "url": "https://www.pixiv.net/artworks/test-work-002",
+  "artist": {
+    "externalId": "test-artist-B",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-B"
+  }
+}
+
+### Work 003 on X by artist C, Liked
+# @name work003
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "X",
+  "externalId": "test-work-003",
+  "url": "https://x.com/artist_c/status/test-work-003",
+  "title": "Night city",
+  "status": "Liked",
+  "artist": {
+    "externalId": "test-artist-C",
+    "profileUrl": "https://x.com/artist_c",
+    "handle": "artist_c"
+  }
+}
+
+### ============================================================
+### AddWork scenarios
+### ============================================================
+
+### Re-save work 001 — expect 200, status stays Queued
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-001",
+  "url": "https://www.pixiv.net/artworks/test-work-001",
+  "artist": {
+    "externalId": "test-artist-A",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-A"
+  }
+}
+
+### Validation — expect 400 with externalId, url, artist.externalId
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "",
+  "artist": {
+    "externalId": "  ",
+    "profileUrl": "https://www.pixiv.net/users/x"
+  }
+}
+
+### Validation — expect 400 with platform and artist
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "externalId": "x",
+  "url": "y"
+}
+
+### Invalid enum — expect 400 from BadRequestExceptionHandler
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Tumblr",
+  "externalId": "x",
+  "url": "y",
+  "artist": { "externalId": "a", "profileUrl": "b" }
+}
+
+### ============================================================
+### ListWorks
+### ============================================================
+
+### All — expect 3, totalCount: 3
+GET {{baseUrl}}/works
+
+### Paging — expect 1 item, hasPrevious and hasNext both true
+GET {{baseUrl}}/works?pageSize=1&page=2
+
+### Status — expect only "Night city"
+GET {{baseUrl}}/works?status=Liked
+
+### Platform — expect only "Night city"
+GET {{baseUrl}}/works?platform=X
+
+### Search (case-insensitive) — expect "Night city"
+GET {{baseUrl}}/works?search=NIGHT
+
+### Search by artist handle — expect test-work-002
+GET {{baseUrl}}/works?search=artist_b
+
+### By artist — expect only test-work-002
+GET {{baseUrl}}/works?artistId={{artistB.response.body.$.artistId}}
+
+### Invalid enum in query — check the error message
+GET {{baseUrl}}/works?status=Loved
+
+### ============================================================
+### ListArtists
+### ============================================================
+
+### All — expect only artist B (A and C are catalog-only)
+GET {{baseUrl}}/artists
+
+### Search by handle — expect artist B
+GET {{baseUrl}}/artists?search=artist_b
+
+### Status — expect empty
+GET {{baseUrl}}/artists?status=Queued
+
+### Status + platform — expect artist B
+GET {{baseUrl}}/artists?status=Watching&platform=Pixiv
+
+### ============================================================
+### Status updates
+### ============================================================
+
+### Work 001 -> Disliked — expect newStatus: Disliked
+PATCH {{baseUrl}}/works/{{work001.response.body.$.workId}}/status
+Content-Type: application/json
+
+{
+  "status": "Disliked"
+}
+
+### Unknown work — expect 404
+PATCH {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead/status
+Content-Type: application/json
+
+{
+  "status": "Liked"
+}
+
+### Artist B -> Seen — expect newStatus: Seen
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Content-Type: application/json
+
+{
+  "status": "Seen"
+}
+
+### Missing status — expect 400
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Content-Type: application/json
+
+{}
