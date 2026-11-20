@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net.NetworkInformation;
 
-namespace ArtDoomscroll.API.Features;
+namespace ArtDoomscroll.API.Features.Works;
 
 public static class ListWorks
 {

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileSystemGlobbing.Internal;
 
-namespace ArtDoomscroll.API.Features;
+namespace ArtDoomscroll.API.Features.Artists;
 
 public static class ListArtists
 {

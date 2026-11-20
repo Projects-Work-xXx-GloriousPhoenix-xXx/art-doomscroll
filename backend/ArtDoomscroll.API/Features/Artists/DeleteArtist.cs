@@ -2,7 +2,7 @@
 using ArtDoomscroll.API.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArtDoomscroll.API.Features;
+namespace ArtDoomscroll.API.Features.Artists;
 
 public static class DeleteArtist
 {

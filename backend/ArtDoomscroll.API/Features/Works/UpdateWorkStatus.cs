@@ -3,7 +3,7 @@ using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArtDoomscroll.API.Features;
+namespace ArtDoomscroll.API.Features.Works;
 
 public static class UpdateWorkStatus
 {

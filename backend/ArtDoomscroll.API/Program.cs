@@ -1,7 +1,8 @@
 using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Errors;
-using ArtDoomscroll.API.Features;
+using ArtDoomscroll.API.Features.Artists;
+using ArtDoomscroll.API.Features.Works;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -55,5 +56,6 @@ DeleteArtist.Map(app);
 AddWork.Map(app);
 UpdateWorkStatus.Map(app);
 ListWorks.Map(app);
+DeleteWork.Map(app);
 
 app.Run();

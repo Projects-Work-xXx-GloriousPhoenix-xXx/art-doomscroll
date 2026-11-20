@@ -5,7 +5,7 @@ using ArtDoomscroll.API.Enums;
 using ArtDoomscroll.API.Shared;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArtDoomscroll.API.Features;
+namespace ArtDoomscroll.API.Features.Artists;
 
 public static class AddArtist
 {
