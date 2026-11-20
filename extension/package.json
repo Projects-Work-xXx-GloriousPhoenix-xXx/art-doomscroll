@@ -1,8 +1,8 @@
 {
-  "name": "wxt-starter",
+  "name": "art-doomscroll-extension",
   "version": "0.0.0",
   "private": true,
-  "description": "manifest.json description",
+  "description": "Save artists and works while scrolling",
   "type": "module",
   "scripts": {
     "dev": "wxt",

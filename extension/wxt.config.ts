@@ -1,4 +1,8 @@
 import { defineConfig } from 'wxt';
 
-// See https://wxt.dev/api/reference/wxt/interfaces/inlineconfig.html
-export default defineConfig({});
+export default defineConfig({
+  manifest: {
+    name: 'art-doomscroll',
+    description: 'Save artists and works while scrolling',
+  },
+});
