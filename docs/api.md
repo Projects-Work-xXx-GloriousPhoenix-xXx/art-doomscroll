@@ -4,7 +4,7 @@
 /artists
 ├── POST   /artists                              [done]     add artist (find-or-create profile + UserArtist)
 ├── GET    /artists                              [done]     my artists (paging, ?status, ?platform, ?search)
-├── GET    /artists/{id}                         [mvp]      artist details: profiles, status, note
+├── GET    /artists/{id}                         [done]     artist card: profiles, my library entry (or null), my work counts
 ├── PATCH  /artists/{id}/status                  [done]     change status (Queued / Watching / Seen)
 ├── PATCH  /artists/{id}/note                    [mvp]      note on artist
 ├── DELETE /artists/{id}                         [mvp]      remove artist from my library (deletes UserArtist, not Artist)
@@ -35,6 +35,9 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
 - `/artists` and `/works` operate on the current user's library (`UserArtist` / `UserWork`).
   `DELETE` removes only the user's link; `Artist` and `Work` stay in the shared catalog.
   Exceptions: `profiles` and `merge` change the shared catalog itself.
+- `GET /artists/{id}` reads from the shared catalog: it returns any known artist, with `library: null`
+  if the artist is not in the user's library. `404` means the artist does not exist at all.
+- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`).
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
 - List filters are optional and combined with AND; no filter means no restriction.

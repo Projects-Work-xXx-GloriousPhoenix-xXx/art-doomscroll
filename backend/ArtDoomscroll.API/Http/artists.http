@@ -1,0 +1,131 @@
+@baseUrl = http://localhost:5256
+
+### ============================================================
+### Setup — run first. Safe to re-run: POSTs are find-or-create.
+### ============================================================
+
+### Artist B — in my library as Watching
+# @name artistB
+POST {{baseUrl}}/artists
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-artist-B",
+  "profileUrl": "https://www.pixiv.net/users/test-artist-B",
+  "handle": "artist_b",
+  "displayName": "Artist B",
+  "status": "Watching"
+}
+
+### Work by artist A — A goes to the catalog only, not to my library
+# @name workByA
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-001",
+  "url": "https://www.pixiv.net/artworks/test-work-001",
+  "title": "Test sunset",
+  "artist": {
+    "externalId": "test-artist-A",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-A",
+    "handle": "artist_a",
+    "displayName": "Artist A"
+  }
+}
+
+### Work by artist B
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-002",
+  "url": "https://www.pixiv.net/artworks/test-work-002",
+  "artist": {
+    "externalId": "test-artist-B",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-B"
+  }
+}
+
+### ============================================================
+### AddArtist
+### ============================================================
+
+### Re-add artist B without status — expect 200, status unchanged
+POST {{baseUrl}}/artists
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-artist-B",
+  "profileUrl": "https://www.pixiv.net/users/test-artist-B"
+}
+
+### Validation — expect 400 with platform, externalId, profileUrl
+POST {{baseUrl}}/artists
+Content-Type: application/json
+
+{
+  "externalId": " "
+}
+
+### ============================================================
+### GetArtist
+### ============================================================
+
+### Artist B — expect library filled, workCounts.queued: 1
+GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+
+### Artist A — expect library: null (catalog only), workCounts.queued: 1
+GET {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}
+
+### Unknown artist — expect 404 "Artist not found"
+GET {{baseUrl}}/artists/00000000-0000-0000-0000-00000000dead
+
+### ============================================================
+### ListArtists
+### ============================================================
+
+### All — expect only artist B (A is catalog-only)
+GET {{baseUrl}}/artists
+
+### Search by handle — expect artist B
+GET {{baseUrl}}/artists?search=ARTIST_B
+
+### Status — expect empty
+GET {{baseUrl}}/artists?status=Queued
+
+### Status + platform — expect artist B
+GET {{baseUrl}}/artists?status=Watching&platform=Pixiv
+
+### Paging out of range — expect empty items, totalCount still counted
+GET {{baseUrl}}/artists?page=99
+
+### ============================================================
+### UpdateArtistStatus
+### ============================================================
+
+### Artist B -> Seen — expect newStatus: Seen
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Content-Type: application/json
+
+{
+  "status": "Seen"
+}
+
+### Artist A (not in my library) — expect 404
+PATCH {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}/status
+Content-Type: application/json
+
+{
+  "status": "Watching"
+}
+
+### Missing status — expect 400
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Content-Type: application/json
+
+{}

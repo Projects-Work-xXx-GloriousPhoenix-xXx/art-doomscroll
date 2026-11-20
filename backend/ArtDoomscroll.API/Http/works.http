@@ -1,10 +1,10 @@
 @baseUrl = http://localhost:5256
 
 ### ============================================================
-### Seed: run these first, top to bottom
+### Setup — run first. Safe to re-run: POSTs are find-or-create.
 ### ============================================================
 
-### Artist B — added to my library as Watching
+### Artist B — in my library as Watching
 # @name artistB
 POST {{baseUrl}}/artists
 Content-Type: application/json
@@ -18,7 +18,7 @@ Content-Type: application/json
   "status": "Watching"
 }
 
-### Work 001 by artist A — A goes to the catalog, not to my library
+### Work 001 by artist A — A goes to the catalog only
 # @name work001
 POST {{baseUrl}}/works
 Content-Type: application/json
@@ -37,7 +37,7 @@ Content-Type: application/json
   }
 }
 
-### Work 002 by artist B — expect artistStatus: Watching
+### Work 002 by artist B — expect artistStatus filled
 # @name work002
 POST {{baseUrl}}/works
 Content-Type: application/json
@@ -71,10 +71,10 @@ Content-Type: application/json
 }
 
 ### ============================================================
-### AddWork scenarios
+### AddWork
 ### ============================================================
 
-### Re-save work 001 — expect 200, status stays Queued
+### Re-save work 001 without status — expect 200, status unchanged
 POST {{baseUrl}}/works
 Content-Type: application/json
 
@@ -110,7 +110,7 @@ Content-Type: application/json
   "url": "y"
 }
 
-### Invalid enum — expect 400 from BadRequestExceptionHandler
+### Invalid enum in body — expect 400 from BadRequestExceptionHandler
 POST {{baseUrl}}/works
 Content-Type: application/json
 
@@ -125,7 +125,7 @@ Content-Type: application/json
 ### ListWorks
 ### ============================================================
 
-### All — expect 3, totalCount: 3
+### All — expect 3 (after a clean DB)
 GET {{baseUrl}}/works
 
 ### Paging — expect 1 item, hasPrevious and hasNext both true
@@ -137,7 +137,7 @@ GET {{baseUrl}}/works?status=Liked
 ### Platform — expect only "Night city"
 GET {{baseUrl}}/works?platform=X
 
-### Search (case-insensitive) — expect "Night city"
+### Search by title (case-insensitive) — expect "Night city"
 GET {{baseUrl}}/works?search=NIGHT
 
 ### Search by artist handle — expect test-work-002
@@ -150,23 +150,7 @@ GET {{baseUrl}}/works?artistId={{artistB.response.body.$.artistId}}
 GET {{baseUrl}}/works?status=Loved
 
 ### ============================================================
-### ListArtists
-### ============================================================
-
-### All — expect only artist B (A and C are catalog-only)
-GET {{baseUrl}}/artists
-
-### Search by handle — expect artist B
-GET {{baseUrl}}/artists?search=artist_b
-
-### Status — expect empty
-GET {{baseUrl}}/artists?status=Queued
-
-### Status + platform — expect artist B
-GET {{baseUrl}}/artists?status=Watching&platform=Pixiv
-
-### ============================================================
-### Status updates
+### UpdateWorkStatus
 ### ============================================================
 
 ### Work 001 -> Disliked — expect newStatus: Disliked
@@ -185,16 +169,8 @@ Content-Type: application/json
   "status": "Liked"
 }
 
-### Artist B -> Seen — expect newStatus: Seen
-PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
-Content-Type: application/json
-
-{
-  "status": "Seen"
-}
-
 ### Missing status — expect 400
-PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+PATCH {{baseUrl}}/works/{{work001.response.body.$.workId}}/status
 Content-Type: application/json
 
 {}
