@@ -50,6 +50,7 @@ AddArtist.Map(app);
 UpdateArtistStatus.Map(app);
 ListArtists.Map(app);
 GetArtist.Map(app);
+DeleteArtist.Map(app);
 
 AddWork.Map(app);
 UpdateWorkStatus.Map(app);
