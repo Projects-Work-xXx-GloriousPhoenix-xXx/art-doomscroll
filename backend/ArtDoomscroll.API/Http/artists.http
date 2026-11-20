@@ -131,6 +131,53 @@ Content-Type: application/json
 {}
 
 ### ============================================================
+### UpdateArtistNote
+### ============================================================
+
+### Set note — expect 200 with note
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Content-Type: application/json
+
+{
+  "note": "  Great backgrounds, check new works monthly  "
+}
+
+### Note is visible on the card — expect library.note (trimmed)
+GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+
+### Clear note with null — expect 200 with note: null
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Content-Type: application/json
+
+{
+  "note": null
+}
+
+### Clear note with empty string — expect 200 with note: null
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Content-Type: application/json
+
+{
+  "note": "   "
+}
+
+### Too long (over 1024 chars, built from 56 generated GUIDs) — expect 400 with "note"
+PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Content-Type: application/json
+
+{
+  "note": "{{$randomInt 0 9}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}{{$guid}}"
+}
+
+### Artist A (catalog-only) — expect 404
+PATCH {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}/note
+Content-Type: application/json
+
+{
+  "note": "x"
+}
+
+### ============================================================
 ### DeleteArtist — run last. Re-run Setup to restore the deleted entry.
 ### ============================================================
 

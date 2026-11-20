@@ -49,6 +49,7 @@ app.MapControllers();
 
 AddArtist.Map(app);
 UpdateArtistStatus.Map(app);
+UpdateArtistNote.Map(app);
 ListArtists.Map(app);
 GetArtist.Map(app);
 DeleteArtist.Map(app);

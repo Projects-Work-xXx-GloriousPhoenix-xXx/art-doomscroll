@@ -6,7 +6,7 @@
 ├── GET    /artists                              [done]     my artists (paging, ?status, ?platform, ?search)
 ├── GET    /artists/{id}                         [done]     artist card: profiles, my library entry (or null), my work counts
 ├── PATCH  /artists/{id}/status                  [done]     change status (Queued / Watching / Seen)
-├── PATCH  /artists/{id}/note                    [mvp]      note on artist
+├── PATCH  /artists/{id}/note                    [done]     set or clear my note on artist (null or empty clears, max 1024 chars)
 ├── DELETE /artists/{id}                         [done]     remove artist from my library (deletes UserArtist, not Artist)
 ├── POST   /artists/{id}/profiles                [backlog]  attach a profile from another platform to this artist
 ├── POST   /artists/{id}/merge/{otherId}         [backlog]  merge two artists into one
