@@ -129,3 +129,25 @@ PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
 Content-Type: application/json
 
 {}
+
+### ============================================================
+### DeleteArtist — run last. Re-run Setup to restore the deleted entry.
+### ============================================================
+
+### Delete artist B from my library — expect 204
+DELETE {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+
+### Artist B still in the catalog — expect 200 with library: null, workCounts unchanged
+GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+
+### Not in my library anymore — expect empty list
+GET {{baseUrl}}/artists
+
+### Artist B's works are kept — expect test-work-002
+GET {{baseUrl}}/works?artistId={{artistB.response.body.$.artistId}}
+
+### Delete again — expect 404 "not found in your library"
+DELETE {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+
+### Artist A (catalog-only) — expect 404
+DELETE {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}

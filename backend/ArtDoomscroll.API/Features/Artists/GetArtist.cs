@@ -36,6 +36,7 @@ public static class GetArtist
     private static async Task<IResult> Handle(Guid id, AppDoomscrollDbContext db, ICurrentUser currentUser, CancellationToken ct)
     {
         var response = await db.Artists
+            .AsNoTracking()
             .Where(a => a.Id == id)
             .Select(a => new Response(
                 a.Id,
@@ -58,6 +59,7 @@ public static class GetArtist
         }
 
         var counts = await db.UserWorks
+            .AsNoTracking()
             .Where(uw => uw.UserId == currentUser.UserId && uw.Work.ArtistProfile.ArtistId == id)
             .GroupBy(uw => uw.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })

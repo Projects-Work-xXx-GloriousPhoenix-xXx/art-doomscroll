@@ -2,22 +2,12 @@
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Enums;
 using ArtDoomscroll.API.Shared;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Net.NetworkInformation;
 
 namespace ArtDoomscroll.API.Features.Works;
 
 public static class ListWorks
 {
-    public record WorkArtistDto(
-        Guid Id,
-        string DisplayName,
-        string? Handle,
-        string ProfileUrl,
-        string? AvatarUrl,
-        ArtistStatus? Status);
-
     public record WorkDto(
         Guid Id,
         Platform Platform,
@@ -27,6 +17,14 @@ public static class ListWorks
         WorkStatus Status,
         DateTime AddedAt,
         WorkArtistDto Artist);
+
+    public record WorkArtistDto(
+        Guid Id,
+        string DisplayName,
+        string? Handle,
+        string ProfileUrl,
+        string? AvatarUrl,
+        ArtistStatus? Status);
 
     public record Query(
         int Page = 1,
@@ -93,6 +91,7 @@ public static class ListWorks
                     ProfileUrl: uw.Work.ArtistProfile.ProfileUrl,
                     AvatarUrl: uw.Work.ArtistProfile.AvatarUrl,
                     Status: db.UserArtists
+                        .AsNoTracking()
                         .Where(ua => ua.UserId == currentUser.UserId && ua.ArtistId == uw.Work.ArtistProfile.ArtistId)
                         .Select(ua => (ArtistStatus?)ua.Status)
                         .FirstOrDefault())))

@@ -174,3 +174,32 @@ PATCH {{baseUrl}}/works/{{work001.response.body.$.workId}}/status
 Content-Type: application/json
 
 {}
+
+### ============================================================
+### GetWork
+### ============================================================
+
+### Work 002 — expect library filled, artist.status filled (artist B is in my library)
+GET {{baseUrl}}/works/{{work002.response.body.$.workId}}
+
+### Work 001 — expect artist.status: null (artist A is catalog-only)
+GET {{baseUrl}}/works/{{work001.response.body.$.workId}}
+
+### Unknown work — expect 404 "Work not found"
+GET {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead
+
+### ============================================================
+### DeleteWork — run last. Re-run Setup to restore the deleted entry.
+### ============================================================
+
+### Delete work 003 from my library — expect 204
+DELETE {{baseUrl}}/works/{{work003.response.body.$.workId}}
+
+### Work 003 still in the catalog — expect 200 with library: null
+GET {{baseUrl}}/works/{{work003.response.body.$.workId}}
+
+### Not in my library anymore — expect only 2 works
+GET {{baseUrl}}/works
+
+### Delete again — expect 404 "not found in your library"
+DELETE {{baseUrl}}/works/{{work003.response.body.$.workId}}

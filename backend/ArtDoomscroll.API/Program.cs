@@ -56,6 +56,7 @@ DeleteArtist.Map(app);
 AddWork.Map(app);
 UpdateWorkStatus.Map(app);
 ListWorks.Map(app);
+GetWork.Map(app);
 DeleteWork.Map(app);
 
 app.Run();

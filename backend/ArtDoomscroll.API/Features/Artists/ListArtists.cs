@@ -2,9 +2,7 @@
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Enums;
 using ArtDoomscroll.API.Shared;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileSystemGlobbing.Internal;
 
 namespace ArtDoomscroll.API.Features.Artists;
 

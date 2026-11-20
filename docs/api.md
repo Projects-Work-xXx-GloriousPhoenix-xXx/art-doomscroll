@@ -7,7 +7,7 @@
 ├── GET    /artists/{id}                         [done]     artist card: profiles, my library entry (or null), my work counts
 ├── PATCH  /artists/{id}/status                  [done]     change status (Queued / Watching / Seen)
 ├── PATCH  /artists/{id}/note                    [mvp]      note on artist
-├── DELETE /artists/{id}                         [mvp]      remove artist from my library (deletes UserArtist, not Artist)
+├── DELETE /artists/{id}                         [done]     remove artist from my library (deletes UserArtist, not Artist)
 ├── POST   /artists/{id}/profiles                [backlog]  attach a profile from another platform to this artist
 ├── POST   /artists/{id}/merge/{otherId}         [backlog]  merge two artists into one
 └── GET    /artists/lookup?platform=&externalId= [backlog]  "do I already have this profile?" (for the extension)
@@ -15,8 +15,9 @@
 /works
 ├── POST   /works                                [done]     save work (profile + Work + UserWork, no UserArtist)
 ├── GET    /works                                [done]     my works (paging, ?status, ?platform, ?artistId, ?search)
+├── GET    /works/{id}                           [done]     work card: my library entry (or null), artist
 ├── PATCH  /works/{id}/status                    [done]     change status (Queued / Liked / Disliked)
-├── DELETE /works/{id}                           [mvp]      remove work from my library (deletes UserWork)
+├── DELETE /works/{id}                           [done]     remove work from my library (deletes UserWork)
 └── GET    /works/lookup?platform=&externalId=   [backlog]  "is this work already saved?" (for the extension)
 
 /me
@@ -35,8 +36,10 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
 - `/artists` and `/works` operate on the current user's library (`UserArtist` / `UserWork`).
   `DELETE` removes only the user's link; `Artist` and `Work` stay in the shared catalog.
   Exceptions: `profiles` and `merge` change the shared catalog itself.
-- `GET /artists/{id}` reads from the shared catalog: it returns any known artist, with `library: null`
-  if the artist is not in the user's library. `404` means the artist does not exist at all.
+- `GET /artists/{id}` and `GET /works/{id}` read from the shared catalog: they return any known entry,
+  with `library: null` if it is not in the user's library. `404` means it does not exist at all.
+- `PATCH` and `DELETE` operate on the user's library only: `404` means "not in your library".
+  `DELETE` returns `204 No Content`.
 - Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`).
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
