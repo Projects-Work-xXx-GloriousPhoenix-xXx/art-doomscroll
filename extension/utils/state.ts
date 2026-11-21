@@ -8,13 +8,20 @@ export type SaveState =
     | { kind: 'saved'; workId: string; status: WorkStatus }
     | { kind: 'error'; message: string };
 
+export type ArtistState =
+    | { kind: 'checking' }
+    | { kind: 'none' }
+    | { kind: 'saving'; status: ArtistStatus }
+    | { kind: 'saved'; artistId: string; status: ArtistStatus }
+    | { kind: 'error'; message: string };
+
 export interface PageState {
     work: WorkPayload | null;
     save: SaveState;
-    artistStatus: ArtistStatus | null;
+    artist: ArtistState;
 }
 
-let state: PageState = { work: null, save: { kind: 'idle' }, artistStatus: null };
+let state: PageState = { work: null, save: { kind: 'idle' }, artist: { kind: 'none' } };
 const listeners = new Set<(s: PageState) => void>();
 
 export function getState(): PageState {

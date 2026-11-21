@@ -11,7 +11,7 @@ export default defineContentScript({
         async function handle(url: string) {
             const id = getArtworkId(url);
             if (!id) {
-                setState({ work: null, save: { kind: 'idle' }, artistStatus: null });
+                setState({ work: null, save: { kind: 'idle' }, artist: { kind: 'none' } });
                 return;
             }
 
@@ -26,7 +26,7 @@ export default defineContentScript({
             }
 
             if (getArtworkId(location.href) !== id) return;
-            setState({ work, save: { kind: 'checking' }, artistStatus: null });
+            setState({ work, save: { kind: 'checking' }, artist: { kind: 'checking' } });
 
             let result: LookupWorkResult;
             try {
@@ -38,7 +38,7 @@ export default defineContentScript({
             }
             catch {
                 if (getArtworkId(location.href) !== id) return;
-                setState({ save: { kind: 'idle' } });
+                setState({ save: { kind: 'idle' }, artist: { kind: 'none' } });
                 return;
             }
             
@@ -47,7 +47,9 @@ export default defineContentScript({
                 save: result.work
                     ? { kind: 'saved', workId: result.work.workId, status: result.work.status }
                     : { kind: 'idle' },
-                artistStatus: result.artist?.status ?? null
+                artist: result.artist
+                    ? { kind: 'saved', artistId: result.artist.artistId, status: result.artist.status }
+                    : { kind: 'none' },
             })
         }
 

@@ -44,5 +44,33 @@ export default defineBackground(() => {
         }
         
         return res.json();
-    })
+    });
+
+    onMessage('addArtist', async ({ data }) => {
+        const res = await fetch(`${API_URL}/artists`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform: data.platform, ...data.artist, status: data.status }),
+        });
+
+        if (!res.ok) {
+            throw new Error(`API ${res.status}: ${await res.text()}`);
+        }
+
+        return res.json();
+    });
+
+    onMessage('updateArtistStatus', async ({ data }) => {
+        const res = await fetch(`${API_URL}/artists/${data.artistId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: data.status }),
+        });
+
+        if (!res.ok) {
+            throw new Error(`API ${res.status}: ${await res.text()}`);
+        }
+
+        return res.json();
+    });
 });
