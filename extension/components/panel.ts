@@ -1,11 +1,9 @@
 import '@/components/panel.css';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import type { WorkPayload } from '@/utils/pixiv';
-import { saveWork } from '@/utils/actions';
+import { type PageState, subscribe } from '@/utils/state';
+import { saveCurrentWork } from '@/utils/actions';
 
 export async function createPanel(ctx: ContentScriptContext) {
-    let current: WorkPayload | null = null;
-
     const ui = await createShadowRootUi(ctx, {
         name: 'art-doomscroll-panel',
         position: 'overlay',
@@ -19,31 +17,34 @@ export async function createPanel(ctx: ContentScriptContext) {
                 </div>
             `;
             container.querySelector('.save')!
-                .addEventListener('click', async () => handleSave(current));
+                .addEventListener('click', () => saveCurrentWork());
         },
     });
 
-    return {
-        show(work: WorkPayload) {
-            current = work;
-            ui.mount();
-            const root = ui.uiContainer;
-            root.querySelector('.title')!.textContent = work.title ?? '(untitled)';
-            root.querySelector('.artist')!.textContent = `by ${work.artist.displayName ?? work.artist.externalId}`;
-        },
-        
-        hide() {
-            ui.remove();
-        },
-    };
-}
+    let mounted = false;
 
-async function handleSave(value: WorkPayload | null) {
-    if (!value) return;
-    try {
-        const result = await saveWork(value);
-        console.log('[art-doomscroll] saved', result);
-    } catch(e) {
-        console.error('[art-doomscroll] save failed', e);
+    function render(s: PageState) {
+        if (!s.work) {
+            if (mounted) { ui.remove(); mounted = false; }
+            return;
+        }
+
+        if (!mounted) { 
+            ui.mount(); mounted = true;
+        }
+
+        const root = ui.uiContainer;
+        root.querySelector('.title')!.textContent = s.work.title ?? '(untitled)';
+        root.querySelector('.artist')!.textContent = `by ${s.work.artist.displayName ?? s.work.artist.externalId}`;
+
+        const button = root.querySelector<HTMLButtonElement>('.save')!;
+        switch (s.save.kind) {
+            case 'idle': button.textContent = 'Save'; button.disabled = false; break;
+            case 'saving': button.textContent = 'Saving…'; button.disabled = true; break;
+            case 'saved': button.textContent = `Saved · ${s.save.status}`; button.disabled = true; break;
+            case 'error': button.textContent = 'Retry'; button.disabled = false; break;
+        }
     }
+
+    subscribe(render);
 }

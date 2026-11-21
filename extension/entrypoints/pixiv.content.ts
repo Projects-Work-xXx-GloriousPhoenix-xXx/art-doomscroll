@@ -1,20 +1,21 @@
-import { createPanel } from "@/components/panel";
 import { fetchWork, getArtworkId } from "@/utils/pixiv";
+import { setState } from "@/utils/state";
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],
     cssInjectionMode: 'ui',
     async main(ctx) {
-        const panel = await createPanel(ctx);
+        await createPanel(ctx);
+        
         async function handle(url: string) {
             const id = getArtworkId(url);
             if (!id) {
-                panel.hide();
+                setState({ work: null, save: { kind: 'idle' } });
                 return;
             }
 
             const work = await fetchWork(id);
-            panel.show(work);
+            setState({ work, save: { kind: 'idle' } });
         }
 
         handle(location.href);
