@@ -1,7 +1,8 @@
 import '@/components/panel.css';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { type PageState, subscribe } from '@/utils/state';
-import { saveCurrentWork } from '@/utils/actions';
+import { setWorkStatus } from '@/utils/actions';
+import type { WorkStatus } from '@/utils/types';
 
 export async function createPanel(ctx: ContentScriptContext) {
     const ui = await createShadowRootUi(ctx, {
@@ -13,11 +14,20 @@ export async function createPanel(ctx: ContentScriptContext) {
                 <div class="panel">
                     <div class="title"></div>
                     <div class="artist"></div>
-                    <button class="save">Save</button>
+                    <div class="actions">
+                        <button data-status="Queued" class="queue" title="Later">⏱ Later</button>
+                        <button data-status="Liked" class="like" title="Like">♥</button>
+                        <button data-status="Disliked" class="dislike" title="Dislike">✕</button>
+                    </div>
+                    <div class="hint"></div>
                 </div>
             `;
-            container.querySelector('.save')!
-                .addEventListener('click', () => saveCurrentWork());
+
+            container.querySelector('.actions')!.addEventListener('click', (e) => {
+                const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-status]');
+                if (!button) return;
+                setWorkStatus(button.dataset.status as WorkStatus);
+            });
         },
     });
 
@@ -39,13 +49,22 @@ export async function createPanel(ctx: ContentScriptContext) {
         const artistText = s.artistStatus ? `by ${name} · ${s.artistStatus}` : `by ${name}`;
         root.querySelector('.artist')!.textContent = artistText;
 
-        const button = root.querySelector<HTMLButtonElement>('.save')!;
+        const busy = s.save.kind === 'checking' || s.save.kind === 'saving';
+        const current = s.save.kind === 'saved' || s.save.kind === 'saving' ? s.save.status : null;
+
+        root.querySelectorAll<HTMLButtonElement>('button[data-status]').forEach((b) => {
+            b.disabled = busy;
+            b.classList.toggle('active', b.dataset.status === current);
+            b.setAttribute('aria-pressed', String(b.dataset.status === current));
+        });
+
+        const hint = root.querySelector('.hint')!;
         switch (s.save.kind) {
-            case 'idle': button.textContent = 'Save'; button.disabled = false; break;
-            case 'saving': button.textContent = 'Saving…'; button.disabled = true; break;
-            case 'saved': button.textContent = `Saved · ${s.save.status}`; button.disabled = true; break;
-            case 'error': button.textContent = 'Retry'; button.disabled = false; break;
-            case 'checking': button.textContent = 'Checking…'; button.disabled = true; break;
+            case 'checking': hint.textContent = 'Checking…'; break;
+            case 'saving':   hint.textContent = 'Saving…'; break;
+            case 'error':    hint.textContent = 'Error — try again'; break;
+            case 'idle':
+            case 'saved':    hint.textContent = ''; break;
             default: { const _: never = s.save; }
         }
     }

@@ -4,7 +4,7 @@ import type { ArtistStatus, WorkStatus } from '@/utils/types';
 export type SaveState =
     | { kind: 'checking' }
     | { kind: 'idle' }
-    | { kind: 'saving' }
+    | { kind: 'saving'; status: WorkStatus }
     | { kind: 'saved'; workId: string; status: WorkStatus }
     | { kind: 'error'; message: string };
 

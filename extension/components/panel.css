@@ -9,3 +9,26 @@
     border-radius: 8px;
     font: 14px system-ui, sans-serif;
 }
+
+.title  { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artist { color: #aaa; margin-top: 2px; }
+.hint   { color: #888; font-size: 12px; margin-top: 6px; min-height: 1em; }
+
+.actions { display: flex; gap: 6px; margin-top: 10px; }
+
+.actions button {
+    padding: 6px 12px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #2a2a2a;
+    color: #ddd;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.actions button:hover:not(:disabled) { background: #353535; }
+.actions button:disabled { opacity: 0.5; cursor: default; }
+
+.queue.active   { background: #1e3a5f; border-color: #3b82f6; color: #fff; }
+.like.active    { background: #5f1e33; border-color: #ff4d6d; color: #fff; }
+.dislike.active { background: #3a3a3a; border-color: #888;    color: #fff; }

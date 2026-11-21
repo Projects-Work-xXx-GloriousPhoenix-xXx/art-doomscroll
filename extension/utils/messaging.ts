@@ -18,6 +18,7 @@ export interface LookupWorkResult {
 interface ProtocolMap {
     saveWork(data: { work: WorkPayload; status?: WorkStatus }): SaveWorkResult;
     lookupWork(data: { platform: Platform, externalId: string; artistExternalId: string }): LookupWorkResult;
+    updateWorkStatus(data: { workId: string, status: WorkStatus }): { newStatus: WorkStatus };
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
