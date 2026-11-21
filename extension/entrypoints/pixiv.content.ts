@@ -1,20 +1,24 @@
+import { createPanel } from "@/components/panel";
 import { fetchWork, getArtworkId } from "@/utils/pixiv";
 
 export default defineContentScript({
-    matches: ['*://*.pixiv.net/*'],
-    main(ctx) {
-        handle(location.href);
+    matches: ['*://www.pixiv.net/*'],
+    cssInjectionMode: 'ui',
+    async main(ctx) {
+        const panel = await createPanel(ctx);
+        async function handle(url: string) {
+            const id = getArtworkId(url);
+            if (!id) {
+                panel.hide();
+                return;
+            }
 
-        ctx.addEventListener(window, 'wxt:locationchange', ({ newUrl }) => {
-            handle(newUrl.href);
-        });
+            const work = await fetchWork(id);
+            panel.show(work);
+        }
+
+        handle(location.href);
+        ctx.addEventListener(window, 'wxt:locationchange', ({ newUrl }) => handle(newUrl.href));
     },
 });
 
-async function handle(url: string) {
-    const id = getArtworkId(url);
-    if (!id) return;
-
-    const work = await fetchWork(id);
-    console.log('[art-doomscroll]', work);
-}

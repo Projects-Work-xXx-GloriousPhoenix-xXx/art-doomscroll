@@ -42,10 +42,10 @@ export async function fetchWork(id: string): Promise<WorkPayload> {
         title: illust.illustTitle,
         thumbnailUrl: illust.urls.small ?? illust.urls.thumb,
         artist: {
-        externalId: illust.userId,
-        profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
-        handle: illust.userAccount,
-        displayName: illust.userName,
+            externalId: illust.userId,
+            profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
+            handle: illust.userAccount,
+            displayName: illust.userName,
         },
     };
 }
