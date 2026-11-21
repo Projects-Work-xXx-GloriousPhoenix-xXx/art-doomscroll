@@ -189,6 +189,28 @@ GET {{baseUrl}}/works/{{work001.response.body.$.workId}}
 GET {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead
 
 ### ============================================================
+### LookupWork — always 200; work/artist are null when not in my library
+### ============================================================
+
+### Saved work by artist B — expect work and artist both filled
+GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-002&artistExternalId=test-artist-B
+
+### New work by followed artist B — expect work: null, artist filled
+GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-999&artistExternalId=test-artist-B
+
+### Saved work by catalog-only artist A — expect work filled, artist: null
+GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-001&artistExternalId=test-artist-A
+
+### Without artistExternalId — expect artist: null
+GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-002
+
+### Same externalId on another platform — expect work: null, artist: null
+GET {{baseUrl}}/works/lookup?platform=X&externalId=test-work-002&artistExternalId=test-artist-B
+
+### Validation — expect 400 with platform and externalId
+GET {{baseUrl}}/works/lookup?externalId=
+
+### ============================================================
 ### DeleteWork — run last. Re-run Setup to restore the deleted entry.
 ### ============================================================
 
