@@ -41,7 +41,10 @@ if (app.Environment.IsDevelopment())
     await DevDataSeeder.SeedAsync(app.Services);
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
