@@ -1,7 +1,8 @@
 import type { WorkPayload } from '@/utils/pixiv';
-import type { WorkStatus } from '@/utils/messaging';
+import type { ArtistStatus, WorkStatus } from '@/utils/types';
 
 export type SaveState =
+    | { kind: 'checking' }
     | { kind: 'idle' }
     | { kind: 'saving' }
     | { kind: 'saved'; workId: string; status: WorkStatus }
@@ -10,9 +11,10 @@ export type SaveState =
 export interface PageState {
     work: WorkPayload | null;
     save: SaveState;
+    artistStatus: ArtistStatus | null;
 }
 
-let state: PageState = { work: null, save: { kind: 'idle' } };
+let state: PageState = { work: null, save: { kind: 'idle' }, artistStatus: null };
 const listeners = new Set<(s: PageState) => void>();
 
 export function getState(): PageState {

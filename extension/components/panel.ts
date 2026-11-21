@@ -35,7 +35,9 @@ export async function createPanel(ctx: ContentScriptContext) {
 
         const root = ui.uiContainer;
         root.querySelector('.title')!.textContent = s.work.title ?? '(untitled)';
-        root.querySelector('.artist')!.textContent = `by ${s.work.artist.displayName ?? s.work.artist.externalId}`;
+        const name = s.work.artist.displayName ?? s.work.artist.externalId;
+        const artistText = s.artistStatus ? `by ${name} · ${s.artistStatus}` : `by ${name}`;
+        root.querySelector('.artist')!.textContent = artistText;
 
         const button = root.querySelector<HTMLButtonElement>('.save')!;
         switch (s.save.kind) {
@@ -43,6 +45,8 @@ export async function createPanel(ctx: ContentScriptContext) {
             case 'saving': button.textContent = 'Saving…'; button.disabled = true; break;
             case 'saved': button.textContent = `Saved · ${s.save.status}`; button.disabled = true; break;
             case 'error': button.textContent = 'Retry'; button.disabled = false; break;
+            case 'checking': button.textContent = 'Checking…'; button.disabled = true; break;
+            default: { const _: never = s.save; }
         }
     }
 

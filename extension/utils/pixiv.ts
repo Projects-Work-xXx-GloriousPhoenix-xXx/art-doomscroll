@@ -1,3 +1,5 @@
+import type { Platform } from "./types";
+
 export function getArtworkId(url: string): string | null {
     const match = new URL(url).pathname.match(/^\/(?:en\/)?artworks\/(\d+)/);
     return match?.[1] ?? null;
@@ -13,7 +15,7 @@ interface PixivIllust {
 }
 
 export interface WorkPayload {
-    platform: 'Pixiv';
+    platform: Platform;
     externalId: string;
     url: string;
     title?: string;
@@ -42,10 +44,10 @@ export async function fetchWork(id: string): Promise<WorkPayload> {
         title: illust.illustTitle,
         thumbnailUrl: illust.urls.small ?? illust.urls.thumb,
         artist: {
-            externalId: illust.userId,
-            profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
-            handle: illust.userAccount,
-            displayName: illust.userName,
+        externalId: illust.userId,
+        profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
+        handle: illust.userAccount,
+        displayName: illust.userName,
         },
     };
 }

@@ -16,4 +16,19 @@ export default defineBackground(() => {
         
         return res.json();
     });
+    
+    onMessage('lookupWork', async ({ data })=> {
+        const params = new URLSearchParams({ 
+            platform: data.platform, 
+            externalId: data.externalId, 
+            artistExternalId: data.artistExternalId 
+        });
+
+        const res = await fetch(`${API_URL}/works/lookup?${params}`);
+        if (!res.ok) {
+            throw new Error(`API ${res.status}: ${await res.text()}`);
+        }
+
+        return res.json();
+    });
 });

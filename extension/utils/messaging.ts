@@ -1,18 +1,24 @@
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { WorkPayload } from '@/utils/pixiv';
-
-export type WorkStatus = 'Queued' | 'Liked' | 'Disliked';
+import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
 
 export interface SaveWorkResult {
     workId: string;
     artistId: string;
     status: WorkStatus;
     isNew: boolean;
-    artistStatus: 'Queued' | 'Watching' | 'Seen' | null;
+    artistStatus: ArtistStatus | null;
+}
+
+export interface LookupWorkResult {
+    work: { workId: string; status: WorkStatus } | null;
+    artist: { artistId: string; status: ArtistStatus } | null;
 }
 
 interface ProtocolMap {
     saveWork(data: { work: WorkPayload; status?: WorkStatus }): SaveWorkResult;
+    lookupWork(data: { platform: Platform, externalId: string; artistExternalId: string }): LookupWorkResult;
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
+
