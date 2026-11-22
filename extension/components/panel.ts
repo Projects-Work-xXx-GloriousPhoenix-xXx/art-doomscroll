@@ -21,8 +21,8 @@ export async function createPanel(ctx: ContentScriptContext) {
                     </div>
                     <div class="actions">
                         <button data-status="Queued" class="queue" title="Later">⏱ Later</button>
-                        <button data-status="Liked" class="like" title="Like">♥</button>
-                        <button data-status="Disliked" class="dislike" title="Dislike">✕</button>
+                        <button data-status="Liked" class="like" title="Like">♥ Like</button>
+                        <button data-status="Disliked" class="dislike" title="Dislike">✕ Dislike</button>
                     </div>
                     <div class="hint"></div>
                 </div>
