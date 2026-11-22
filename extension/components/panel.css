@@ -10,9 +10,8 @@
     font: 14px system-ui, sans-serif;
 }
 
-.title  { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title  { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px; }
 .artist { color: #aaa; margin-top: 2px; }
-.hint   { color: #888; font-size: 12px; margin-top: 6px; min-height: 1em; }
 
 .actions,
 .artist-actions { display: flex; gap: 6px; margin-top: 10px; }
@@ -40,3 +39,22 @@
 .queue.active   { background: #1e3a5f; border-color: #3b82f6; color: #fff; }
 .like.active    { background: #5f1e33; border-color: #ff4d6d; color: #fff; }
 .dislike.active { background: #3a3a3a; border-color: #888;    color: #fff; }
+
+.help { position: absolute; top: 8px; right: 10px; color: #777; cursor: default; }
+.help:hover { color: #ddd; }
+.help-popup {
+    display: none;
+    position: absolute; right: 0; bottom: calc(100% + 6px);
+    padding: 8px 10px; background: #111; border: 1px solid #444; border-radius: 6px;
+    white-space: nowrap; font-size: 12px; color: #ddd;
+}
+.help:hover .help-popup { display: block; }
+
+.row-status { width: 16px; display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; }
+.row-status.busy::after {
+    content: ''; width: 10px; height: 10px;
+    border: 2px solid #666; border-top-color: #ddd; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+.row-status.error::after { content: '⚠'; color: #f59e0b; }
+@keyframes spin { to { transform: rotate(360deg); } }

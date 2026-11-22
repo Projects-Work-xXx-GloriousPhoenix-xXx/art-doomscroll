@@ -3,6 +3,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { type ArtistState, type PageState, type SaveState, subscribe } from '@/utils/state';
 import { setArtistStatus, setWorkStatus } from '@/utils/actions';
 import type { ArtistStatus, WorkStatus } from '@/utils/types';
+import { bindings, describeBinding } from '@/utils/hotkeys';
 
 export async function createPanel(ctx: ContentScriptContext) {
     const ui = await createShadowRootUi(ctx, {
@@ -12,17 +13,20 @@ export async function createPanel(ctx: ContentScriptContext) {
         onMount(container) {
             container.innerHTML = `
                 <div class="panel">
+                    <span class="help">⌨<div class="help-popup"></div></span>
                     <div class="title"></div>
                     <div class="artist"></div>
                     <div class="artist-actions">
                         <button data-artist-status="Queued" class="queue" title="Check later">⏱ Later</button>
                         <button data-artist-status="Watching" class="follow" title="Follow">★ Follow</button>
                         <button data-artist-status="Seen" class="seen" title="Seen">✓ Seen</button>
+                        <span class="row-status"></span>
                     </div>
                     <div class="actions">
                         <button data-status="Queued" class="queue" title="Later">⏱ Later</button>
                         <button data-status="Liked" class="like" title="Like">♥ Like</button>
                         <button data-status="Disliked" class="dislike" title="Dislike">✕ Dislike</button>
+                        <span class="row-status"></span>
                     </div>
                     <div class="hint"></div>
                 </div>
@@ -39,6 +43,8 @@ export async function createPanel(ctx: ContentScriptContext) {
                 if (!button) return;
                 setArtistStatus(button.dataset.artistStatus as ArtistStatus);
             });
+
+            container.querySelector('.help-popup')!.innerHTML = bindings.map(describeBinding).join('<br>');
         },
     });
 
@@ -75,20 +81,15 @@ export async function createPanel(ctx: ContentScriptContext) {
             b.setAttribute('aria-pressed', String(b.dataset.artistStatus === artistCurrent));
         });
 
-        root.querySelector('.hint')!.textContent = hintFor(s.save) || hintFor(s.artist);
+        setRowStatus(root.querySelector('.actions .row-status')!, s.save);
+        setRowStatus(root.querySelector('.artist-actions .row-status')!, s.artist);
     }
 
     subscribe(render);
 }
 
-function hintFor(s: SaveState | ArtistState): string {
-    switch (s.kind) {
-        case 'checking': return 'Checking…';
-        case 'saving':   return 'Saving…';
-        case 'error':    return 'Error — try again';
-        case 'idle':
-        case 'none':
-        case 'saved':    return '';
-        default: { const _: never = s; return ''; }
-    }
+function setRowStatus(el: Element, s: SaveState | ArtistState) {
+    el.classList.toggle('busy', s.kind === 'checking' || s.kind === 'saving');
+    el.classList.toggle('error', s.kind === 'error');
+    el.setAttribute('title', s.kind === 'error' ? s.message : '');
 }

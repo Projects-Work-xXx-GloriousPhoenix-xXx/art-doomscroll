@@ -33,3 +33,8 @@ function isTyping(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     return target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 }
+
+export function describeBinding(b: Binding): string {
+    const key = (b.shift ? 'Shift+' : '') + b.code.replace('Key', '');
+    return `${key} — ${b.target} ${b.status}`;
+}
