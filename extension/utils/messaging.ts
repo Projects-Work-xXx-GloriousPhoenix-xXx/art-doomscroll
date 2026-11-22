@@ -26,8 +26,9 @@ interface ProtocolMap {
     saveWork(data: { work: WorkPayload; status?: WorkStatus }): SaveWorkResult;
     lookupWork(data: { platform: Platform, externalId: string; artistExternalId: string }): LookupWorkResult;
     updateWorkStatus(data: { workId: string, status: WorkStatus }): { newStatus: WorkStatus };
-    addArtist(data: { platform: Platform; artist: WorkPayload['artist']; status: ArtistStatus }): AddArtistResult;
+    addArtist(data: { platform: Platform; artist: WorkPayload['artist']; status?: ArtistStatus }): AddArtistResult;
     updateArtistStatus(data: { artistId: string; status: ArtistStatus }): { newStatus: ArtistStatus };
+    deleteWork(data: { workId: string }): void;
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();

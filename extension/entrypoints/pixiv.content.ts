@@ -3,14 +3,17 @@ import type { LookupWorkResult } from "@/utils/messaging";
 import { fetchWork, getArtworkId, type WorkPayload } from "@/utils/pixiv";
 import { setState } from "@/utils/state";
 import { handleFacadeClick } from "@/utils/facade";
+import { createPanel } from "@/components/panel/panel";
+import { observeRecommendations } from "@/utils/recomendations";
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],
     cssInjectionMode: 'ui',
     async main(ctx) {
         await createPanel(ctx);
-
+        observeRecommendations(ctx);
         handleChangeLocation(location.href);
+
         ctx.addEventListener(window, 'wxt:locationchange', ({ newUrl }) => handleChangeLocation(newUrl.href));
         ctx.addEventListener(window, 'keydown', (e) => handleHotkey(e))
         ctx.addEventListener(document, 'click', (e) => handleFacadeClick(e), { capture: true });

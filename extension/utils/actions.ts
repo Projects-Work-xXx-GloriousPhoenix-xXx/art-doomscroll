@@ -49,3 +49,16 @@ export async function setArtistStatus(status: ArtistStatus) {
         setState({ artist: { kind: 'error', message: String(e) } });
     }
 }
+
+export async function queueArtist(platform: Platform, artist: WorkPayload['artist']): Promise<ArtistStatus> {
+    const result = await sendMessage('addArtist', { platform, artist });
+    return result.status;
+}
+
+export async function queueWork(work: WorkPayload): Promise<SaveWorkResult> {
+    return sendMessage('saveWork', { work });
+}
+
+export async function unqueueWork(workId: string): Promise<void> {
+    await sendMessage('deleteWork', { workId });
+}

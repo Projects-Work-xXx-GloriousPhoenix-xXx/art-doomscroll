@@ -1,4 +1,4 @@
-import '@/components/panel.css';
+import '@/components/panel/panel.css';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { type ArtistState, type PageState, type SaveState, subscribe } from '@/utils/state';
 import { setArtistStatus, setWorkStatus } from '@/utils/actions';

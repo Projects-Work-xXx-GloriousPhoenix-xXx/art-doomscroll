@@ -73,4 +73,9 @@ export default defineBackground(() => {
 
         return res.json();
     });
+
+    onMessage('deleteWork', async ({ data }) => {
+        const res = await fetch(`${API_URL}/works/${data.workId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    });
 });
