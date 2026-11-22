@@ -1,10 +1,10 @@
 import { handleHotkey } from "@/utils/hotkeys";
 import type { LookupWorkResult } from "@/utils/messaging";
-import { fetchWork, getArtworkId, type WorkPayload } from "@/utils/pixiv";
+import { fetchWork, getArtworkId, type WorkPayload } from "@/utils/pixiv/api";
 import { setState } from "@/utils/state";
-import { handleFacadeClick } from "@/utils/facade";
+import { handleFacadeClick } from "@/utils/pixiv/facade";
 import { createPanel } from "@/components/panel/panel";
-import { observeRecommendations } from "@/utils/recomendations";
+import { observeRecommendations } from "@/utils/pixiv/cards";
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],

@@ -1,4 +1,4 @@
-import type { WorkPayload } from '@/utils/pixiv';
+import type { WorkPayload } from '@/utils/pixiv/api';
 import type { ArtistStatus, WorkStatus } from '@/utils/types';
 
 export type SaveState =

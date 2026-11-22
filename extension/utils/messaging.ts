@@ -1,5 +1,5 @@
 import { defineExtensionMessaging } from '@webext-core/messaging';
-import type { WorkPayload } from '@/utils/pixiv';
+import type { WorkPayload } from '@/utils/pixiv/api';
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
 
 export interface SaveWorkResult {
@@ -29,6 +29,7 @@ interface ProtocolMap {
     addArtist(data: { platform: Platform; artist: WorkPayload['artist']; status?: ArtistStatus }): AddArtistResult;
     updateArtistStatus(data: { artistId: string; status: ArtistStatus }): { newStatus: ArtistStatus };
     deleteWork(data: { workId: string }): void;
+    deleteArtist(data: { artistId: string }): void;
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
