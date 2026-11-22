@@ -6,14 +6,16 @@ export type SaveState =
     | { kind: 'idle' }
     | { kind: 'saving'; status: WorkStatus }
     | { kind: 'saved'; workId: string; status: WorkStatus }
-    | { kind: 'error'; message: string };
+    | { kind: 'error'; message: string }
+    | { kind: 'removing' };
 
 export type ArtistState =
     | { kind: 'checking' }
     | { kind: 'none' }
     | { kind: 'saving'; status: ArtistStatus }
     | { kind: 'saved'; artistId: string; status: ArtistStatus }
-    | { kind: 'error'; message: string };
+    | { kind: 'error'; message: string }
+    | { kind: 'removing' };
 
 export interface PageState {
     work: WorkPayload | null;
@@ -37,4 +39,8 @@ export function subscribe(listener: (s: PageState) => void) {
     listeners.add(listener);
     listener(state); 
     return () => listeners.delete(listener);
+}
+
+export function isBusy(s: SaveState | ArtistState): boolean {
+    return s.kind === 'checking' || s.kind === 'saving' || s.kind === 'removing';
 }

@@ -42,9 +42,14 @@ function injectWorkButtons() {
 
         const button = createQuickButton('⏱ Later', async () => {
             const result = await queueWork(await fetchWork(id));
+
+            if (getState().work?.externalId === id) {
+                setState({ save: { kind: 'saved', workId: result.workId, status: result.status } });
+            }
+
             return {
                 status: result.status,
-                undo: result.isNew ? () => unqueueWork(result.workId) : undefined,
+                undo: result.isNew ? () => undoQueue(id, result.workId) : undefined,
             };
         });
         
@@ -73,4 +78,19 @@ function injectArtistButtons() {
         button.style.cssText = 'margin-left: 6px; flex-shrink: 0;';
         followButton.after(button);
     });
+}
+
+async function undoQueue(id: string, workId: string) {
+    const { work, save } = getState();
+    const isCurrent = work?.externalId === id;
+
+    if (isCurrent && !(save.kind === 'saved' && save.status === 'Queued')) {
+        throw new Error('Status was changed in the panel');
+    }
+
+    await unqueueWork(workId);
+
+    if (getState().work?.externalId === id) {
+        setState({ save: { kind: 'idle' } });
+    }
 }
