@@ -84,11 +84,46 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.ToTable("ArtistProfiles");
                 });
 
+            modelBuilder.Entity("ArtDoomscroll.API.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("ArtDoomscroll.API.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -98,6 +133,7 @@ namespace ArtDoomscroll.API.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -132,6 +168,33 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.HasIndex("ArtistId");
 
                     b.ToTable("UserArtists");
+                });
+
+            modelBuilder.Entity("ArtDoomscroll.API.Entities.UserLogin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "ProviderKey")
+                        .IsUnique();
+
+                    b.ToTable("UserLogins");
                 });
 
             modelBuilder.Entity("ArtDoomscroll.API.Entities.UserWork", b =>
@@ -212,6 +275,17 @@ namespace ArtDoomscroll.API.Data.Migrations
                     b.Navigation("Artist");
                 });
 
+            modelBuilder.Entity("ArtDoomscroll.API.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("ArtDoomscroll.API.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ArtDoomscroll.API.Entities.UserArtist", b =>
                 {
                     b.HasOne("ArtDoomscroll.API.Entities.Artist", "Artist")
@@ -227,6 +301,17 @@ namespace ArtDoomscroll.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Artist");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ArtDoomscroll.API.Entities.UserLogin", b =>
+                {
+                    b.HasOne("ArtDoomscroll.API.Entities.User", "User")
+                        .WithMany("Logins")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -269,6 +354,13 @@ namespace ArtDoomscroll.API.Data.Migrations
             modelBuilder.Entity("ArtDoomscroll.API.Entities.ArtistProfile", b =>
                 {
                     b.Navigation("Works");
+                });
+
+            modelBuilder.Entity("ArtDoomscroll.API.Entities.User", b =>
+                {
+                    b.Navigation("Logins");
+
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

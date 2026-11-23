@@ -12,6 +12,8 @@ public class AppDoomscrollDbContext(DbContextOptions<AppDoomscrollDbContext> opt
     public DbSet<Work> Works => Set<Work>();
     public DbSet<UserArtist> UserArtists => Set<UserArtist>();
     public DbSet<UserWork> UserWorks => Set<UserWork>();
+    public DbSet<UserLogin> UserLogins => Set<UserLogin>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -20,6 +22,9 @@ public class AppDoomscrollDbContext(DbContextOptions<AppDoomscrollDbContext> opt
 
         b.Entity<UserArtist>().HasKey(x => new { x.UserId, x.ArtistId });
         b.Entity<UserWork>().HasKey(x => new { x.UserId, x.WorkId });
+
+        b.Entity<UserLogin>().HasIndex(x => new { x.Provider, x.ProviderKey }).IsUnique();
+        b.Entity<RefreshToken>().HasIndex(x => x.TokenHash).IsUnique();
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
