@@ -2,14 +2,42 @@ using ArtDoomscroll.API.Auth;
 using ArtDoomscroll.API.Data;
 using ArtDoomscroll.API.Errors;
 using ArtDoomscroll.API.Features.Artists;
+using ArtDoomscroll.API.Features.Authentication;
 using ArtDoomscroll.API.Features.Library;
 using ArtDoomscroll.API.Features.Works;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((o, jwtOptions) =>
+    {
+        var jwt = jwtOptions.Value;
+        o.MapInboundClaims = false;
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
 
 builder.Services.AddDbContext<AppDoomscrollDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -17,7 +45,8 @@ builder.Services.AddDbContext<AppDoomscrollDbContext>(options =>
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-builder.Services.AddScoped<ICurrentUser, DevCurrentUser>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi(options =>
@@ -31,14 +60,27 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<GoogleOptions>()
+    .Bind(builder.Configuration.GetSection(GoogleOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<TokenService>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
     await DevDataSeeder.SeedAsync(app.Services);
 }
 
@@ -47,6 +89,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -66,5 +109,9 @@ LookupWork.Map(app);
 DeleteWork.Map(app);
 
 LookupLibrary.Map(app);
+
+AuthGoogle.Map(app);
+RefreshSession.Map(app);
+Logout.Map(app);
 
 app.Run();
