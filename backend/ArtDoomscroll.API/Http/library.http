@@ -1,11 +1,20 @@
 @baseUrl = http://localhost:5256
 
 ### ============================================================
+### Auth — run first. Access token lives 15 min: re-run on 401.
+### ============================================================
+
+### Dev sign-in (Development only)
+# @name dev
+POST {{baseUrl}}/auth/dev
+
+### ============================================================
 ### Setup — run first. Safe to re-run: POSTs are find-or-create.
 ### ============================================================
 
 ### Artist B — in my library as Watching
 POST {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -19,6 +28,7 @@ Content-Type: application/json
 
 ### Work 001 by artist A, Liked — A goes to the catalog only
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -34,6 +44,7 @@ Content-Type: application/json
 
 ### Work 002 by artist B, Queued
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -53,6 +64,7 @@ Content-Type: application/json
 
 ### Mixed — expect works: 001 (Liked), 002 (Queued); artists: B (Watching). No 999, no A (catalog-only)
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -63,6 +75,7 @@ Content-Type: application/json
 
 ### Duplicates and blanks — expect one key test-work-002, no 500
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -73,6 +86,7 @@ Content-Type: application/json
 
 ### Only artists (works omitted) — expect works: {}, artists: B
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -82,6 +96,7 @@ Content-Type: application/json
 
 ### Empty lists — expect both {}
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -92,6 +107,7 @@ Content-Type: application/json
 
 ### Same ids on another platform — expect both {}
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -102,6 +118,7 @@ Content-Type: application/json
 
 ### Validation — expect 400 with platform
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -110,6 +127,7 @@ Content-Type: application/json
 
 ### Validation — 101 works and no platform: expect 400 with platform and works
 POST {{baseUrl}}/library/lookup
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {

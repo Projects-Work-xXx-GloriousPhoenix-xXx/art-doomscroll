@@ -1,12 +1,21 @@
 @baseUrl = http://localhost:5256
 
 ### ============================================================
+### Auth — run first. Access token lives 15 min: re-run on 401.
+### ============================================================
+
+### Dev sign-in (Development only)
+# @name dev
+POST {{baseUrl}}/auth/dev
+
+### ============================================================
 ### Setup — run first. Safe to re-run: POSTs are find-or-create.
 ### ============================================================
 
 ### Artist B — in my library as Watching
 # @name artistB
 POST {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -21,6 +30,7 @@ Content-Type: application/json
 ### Work by artist A — A goes to the catalog only, not to my library
 # @name workByA
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -38,6 +48,7 @@ Content-Type: application/json
 
 ### Work by artist B
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -56,6 +67,7 @@ Content-Type: application/json
 
 ### Re-add artist B without status — expect 200, status unchanged
 POST {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -66,6 +78,7 @@ Content-Type: application/json
 
 ### Validation — expect 400 with platform, externalId, profileUrl
 POST {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -78,12 +91,15 @@ Content-Type: application/json
 
 ### Artist B — expect library filled, workCounts.queued: 1
 GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Artist A — expect library: null (catalog only), workCounts.queued: 1
 GET {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Unknown artist — expect 404 "Artist not found"
 GET {{baseUrl}}/artists/00000000-0000-0000-0000-00000000dead
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### ============================================================
 ### ListArtists
@@ -91,18 +107,23 @@ GET {{baseUrl}}/artists/00000000-0000-0000-0000-00000000dead
 
 ### All — expect only artist B (A is catalog-only)
 GET {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Search by handle — expect artist B
 GET {{baseUrl}}/artists?search=ARTIST_B
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Status — expect empty
 GET {{baseUrl}}/artists?status=Queued
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Status + platform — expect artist B
 GET {{baseUrl}}/artists?status=Watching&platform=Pixiv
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Paging out of range — expect empty items, totalCount still counted
 GET {{baseUrl}}/artists?page=99
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### ============================================================
 ### UpdateArtistStatus
@@ -110,6 +131,7 @@ GET {{baseUrl}}/artists?page=99
 
 ### Artist B -> Seen — expect newStatus: Seen
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -118,6 +140,7 @@ Content-Type: application/json
 
 ### Artist A (not in my library) — expect 404
 PATCH {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -126,6 +149,7 @@ Content-Type: application/json
 
 ### Missing status — expect 400
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {}
@@ -136,6 +160,7 @@ Content-Type: application/json
 
 ### Set note — expect 200 with note
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -144,9 +169,11 @@ Content-Type: application/json
 
 ### Note is visible on the card — expect library.note (trimmed)
 GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Clear note with null — expect 200 with note: null
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -155,6 +182,7 @@ Content-Type: application/json
 
 ### Clear note with empty string — expect 200 with note: null
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -163,6 +191,7 @@ Content-Type: application/json
 
 ### Too long (over 1024 chars, built from 56 generated GUIDs) — expect 400 with "note"
 PATCH {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}/note
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -171,6 +200,7 @@ Content-Type: application/json
 
 ### Artist A (catalog-only) — expect 404
 PATCH {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}/note
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -183,18 +213,24 @@ Content-Type: application/json
 
 ### Delete artist B from my library — expect 204
 DELETE {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Artist B still in the catalog — expect 200 with library: null, workCounts unchanged
 GET {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Not in my library anymore — expect empty list
 GET {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Artist B's works are kept — expect test-work-002
 GET {{baseUrl}}/works?artistId={{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Delete again — expect 404 "not found in your library"
 DELETE {{baseUrl}}/artists/{{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Artist A (catalog-only) — expect 404
 DELETE {{baseUrl}}/artists/{{workByA.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}

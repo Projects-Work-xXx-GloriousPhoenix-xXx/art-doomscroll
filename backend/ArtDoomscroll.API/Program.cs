@@ -81,6 +81,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();
     app.MapScalarApiReference().AllowAnonymous();
+    AuthDev.Map(app);
     await DevDataSeeder.SeedAsync(app.Services);
 }
 

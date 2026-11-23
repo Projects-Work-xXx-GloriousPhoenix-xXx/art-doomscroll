@@ -1,0 +1,104 @@
+@baseUrl = http://localhost:5256
+
+### ============================================================
+### Refresh rotation and reuse detection — run top to bottom.
+### Re-run from step 1 to start over.
+### ============================================================
+
+### 1. Dev sign-in — expect 200 with accessToken and refreshToken
+# @name dev
+POST {{baseUrl}}/auth/dev
+
+### 2. Access token works — expect 200
+GET {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
+
+### 3. Refresh — expect 200 with a new pair; the token from step 1 is now revoked
+# @name rotated
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{dev.response.body.$.refreshToken}}"
+}
+
+### 4. Reuse the token from step 1 — expect 401; all of the user's refresh tokens get revoked
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{dev.response.body.$.refreshToken}}"
+}
+
+### 5. The token from step 3 was revoked by step 4 — expect 401
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{rotated.response.body.$.refreshToken}}"
+}
+
+### ============================================================
+### Logout — run after a fresh sign-in
+### ============================================================
+
+### 6. Dev sign-in — expect 200
+# @name session
+POST {{baseUrl}}/auth/dev
+
+### 7. Logout — expect 204
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{session.response.body.$.refreshToken}}"
+}
+
+### 8. Refresh after logout — expect 401
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{session.response.body.$.refreshToken}}"
+}
+
+### 9. Logout again — expect 204 (idempotent)
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{session.response.body.$.refreshToken}}"
+}
+
+### ============================================================
+### Errors
+### ============================================================
+
+### No token — expect 401
+GET {{baseUrl}}/works
+
+### Garbage token — expect 401
+GET {{baseUrl}}/works
+Authorization: Bearer not-a-jwt
+
+### Unknown refresh token — expect 401
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "unknown"
+}
+
+### Missing refreshToken — expect 400 with refreshToken
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{}
+
+### Invalid Google ID token — expect 401
+POST {{baseUrl}}/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "not-a-google-token"
+}
