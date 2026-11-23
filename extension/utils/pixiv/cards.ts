@@ -1,7 +1,7 @@
-import { createQuickButton } from '@/components/quick-button/quick-button';
-import { queueWork, unqueueWork, queueArtist, unqueueArtist } from '@/utils/actions';
+import { createQuickButton, type QuickButton } from '@/components/quick-button/quick-button';
+import { queueWork, unqueueWork, queueArtist, unqueueArtist, lookupLibrary } from '@/utils/actions';
 import { fetchWork, fetchArtist, getArtworkId  } from '@/utils/pixiv/api';
-import { getState } from '@/utils/state';
+import { getState, setState } from '@/utils/state';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 
 // Pixiv DOM: analytics attributes, more stable than generated classes. May break on Pixiv redesigns.
@@ -9,9 +9,10 @@ const WORK_LINK_SELECTOR = 'a[href*="/artworks/"]';
 const FOLLOW_SELECTOR = 'button[data-click-label="follow"]';
 const DONE_ATTR = 'data-ad-done';
 
+type Pending = Map<string, QuickButton[]>;
+
 export function observeRecommendations(ctx: ContentScriptContext) {
-    injectWorkButtons();
-    injectArtistButtons();
+    scan();
 
     let scheduled = false;
     const observer = new MutationObserver(() => {
@@ -19,8 +20,7 @@ export function observeRecommendations(ctx: ContentScriptContext) {
         scheduled = true;
         requestAnimationFrame(() => {
             scheduled = false;
-            injectWorkButtons();
-            injectArtistButtons();
+            scan();
         });
     });
 
@@ -28,7 +28,7 @@ export function observeRecommendations(ctx: ContentScriptContext) {
     ctx.onInvalidated(() => observer.disconnect());
 }
 
-function injectWorkButtons() {
+function injectWorkButtons(pending: Pending) {
     document.querySelectorAll<HTMLAnchorElement>(WORK_LINK_SELECTOR).forEach((link) => {
         if (!link.querySelector('img, figure')) return;
         const id = getArtworkId(link.href);
@@ -52,13 +52,15 @@ function injectWorkButtons() {
                 undo: result.isNew ? () => undoQueue(id, result.workId) : undefined,
             };
         });
-        
-        button.style.cssText = 'position: absolute; top: 6px; left: 6px; z-index: 1;';
-        card.append(button);
+
+        button.element.style.cssText = 'position: absolute; top: 6px; left: 6px; z-index: 1;';
+        card.append(button.element);
+
+        addPending(pending, id, button);
     });
 }
 
-function injectArtistButtons() {
+function injectArtistButtons(pending: Pending) {
     const currentArtistId = getState().work?.artist.externalId;
 
     document.querySelectorAll<HTMLButtonElement>(FOLLOW_SELECTOR).forEach((followButton) => {
@@ -75,8 +77,11 @@ function injectArtistButtons() {
                 undo: result.isNew ? () => unqueueArtist(result.artistId) : undefined,
             };
         });
-        button.style.cssText = 'margin-left: 6px; flex-shrink: 0;';
-        followButton.after(button);
+
+        button.element.style.cssText = 'margin-left: 6px; flex-shrink: 0;';
+        followButton.after(button.element);
+
+        addPending(pending, externalId, button);
     });
 }
 
@@ -92,5 +97,34 @@ async function undoQueue(id: string, workId: string) {
 
     if (getState().work?.externalId === id) {
         setState({ save: { kind: 'idle' } });
+    }
+}
+
+function addPending(pending: Pending, id: string, button: QuickButton) {
+    const list = pending.get(id) ?? [];
+    list.push(button);
+    pending.set(id, list);
+}
+
+function scan() {
+    const works: Pending = new Map();
+    const artists: Pending = new Map();
+    injectWorkButtons(works);
+    injectArtistButtons(artists);
+    markSavedCards(works, artists);
+}
+
+async function markSavedCards(works: Pending, artists: Pending) {
+    if (works.size === 0 && artists.size === 0) return;
+    try {
+        const result = await lookupLibrary('Pixiv', [...works.keys()], [...artists.keys()]);
+        for (const [id, info] of Object.entries(result.works)) {
+            works.get(id)?.forEach((b) => b.markSaved(info.status));
+        }
+        for (const [id, info] of Object.entries(result.artists)) {
+            artists.get(id)?.forEach((b) => b.markSaved(info.status));
+        }
+    } catch (err) {
+        console.warn('[art-doomscroll] cards: lookup failed', err);
     }
 }

@@ -83,4 +83,18 @@ export default defineBackground(() => {
         const res = await fetch(`${API_URL}/artists/${data.artistId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
     });
+
+    onMessage('lookupLibrary', async ({ data }) => {
+        const res = await fetch(`${API_URL}/library/lookup`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform: data.platform, works: data.works, artists: data.artists }),
+        });
+
+        if (!res.ok) {
+            throw new Error(`API ${res.status}: ${await res.text()}`);
+        }
+        
+        return res.json();
+    });
 });
