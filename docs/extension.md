@@ -6,7 +6,7 @@ Currently supports Pixiv:
 - **Panel** on an artwork page (`/artworks/{id}`, `/en/artworks/{id}`): the work and its artist,
   their status in my library, buttons to set or remove both.
 - **Hotkeys** for the same actions.
-- **Facade**: Pixiv's own bookmark and Follow buttons on the artwork also save to my library.
+- **Facade**: Pixiv's own bookmark and Follow buttons (on the artwork and in carousels) also save to my library.
 - **Later buttons** on work thumbnails and artist cards anywhere on Pixiv (recommendations, author's works,
   feeds, profiles): save for later without opening the page.
 
@@ -79,7 +79,7 @@ Pixiv page                                          Extension
 | `entrypoints/pixiv.content.ts` | Pixiv content script: wires everything up, tracks SPA navigation, runs lookup, fills state |
 | `entrypoints/background.ts` | Message handlers; the only place that calls the API |
 | `utils/pixiv/api.ts` | `getArtworkId(url)`, `fetchWork(id)`, `fetchArtist(userId)`: Pixiv data mapped to `WorkPayload` |
-| `utils/pixiv/facade.ts` | `handleFacadeClick`: Pixiv's bookmark / Follow buttons on the artwork call actions |
+| `utils/pixiv/facade.ts` | `handleFacadeClick`: Pixiv's bookmark / Follow buttons (artwork and carousels) call actions |
 | `utils/pixiv/cards.ts` | `observeRecommendations`: injects Later buttons into thumbnails and artist cards |
 | `utils/hotkeys.ts` | `bindings`, `handleHotkey`, `describeBinding` |
 | `utils/actions.ts` | User actions (see below) |
@@ -96,7 +96,7 @@ Actions:
 | `setWorkStatus`, `setArtistStatus` | hotkeys, facade | set status on the current page (POST if not saved, PATCH if saved) |
 | `toggleWorkStatus`, `toggleArtistStatus` | panel | like `set*`, but clicking the active status calls `remove*` |
 | `removeWork`, `removeArtist` | `toggle*` | DELETE from the library, state back to `idle` / `none` |
-| `queueWork`, `queueArtist` | cards | POST without status, return the full result; do not touch page state |
+| `queueWork`, `queueArtist` | cards, facade | POST (status optional: cards send none, facade sends one), return the full result; do not touch page state |
 | `unqueueWork`, `unqueueArtist` | cards, `remove*` | DELETE by id |
 
 Key decisions:
@@ -178,9 +178,17 @@ Capture-phase click listener on `document`; Pixiv's own action still happens (no
 | Pixiv control | Selector | Our action |
 |---|---|---|
 | Bookmark on the artwork | `button.gtm-main-bookmark` (exists only while not bookmarked) | work `Liked` |
-| Follow of the work's author | `button[data-click-label="follow"]`, `data-gtm-user-id` = current artist | `Watching` if `data-variant="Primary"`, otherwise `Seen` |
+| Bookmark on a carousel card | `[data-ga4-label="bookmark_button"] button` | `Liked` if not bookmarked yet, `Disliked` if the bookmark is being removed |
+| Follow of any user | `button[data-click-label="follow"]`, user id from `data-gtm-user-id` | `Watching` if `data-variant="Primary"`, otherwise `Seen` |
 
-Follow buttons of other users are ignored by the facade (cards handle them, see below).
+- **Current work and artist** go through `setWorkStatus` / `setArtistStatus`, so the panel updates.
+  Others are saved with `queueWork` / `queueArtist` and an explicit status, without touching page state.
+- **Card work id**: the nearest `a[href*="/artworks/"]` found by walking up at most 4 levels from the bookmark
+  button (further up would reach the carousel container and pick another card's link).
+- **Card bookmark state**: the same button is used for both states, so it is read from the SVG's computed color
+  (`rgb(255, 64, 96)` = bookmarked). The listener runs in the capture phase, before Pixiv, so it sees the state
+  before the click.
+- Requests are fire-and-forget; failures are logged to the page console as `[art-doomscroll] facade: ...`.
 
 ## Cards (Later buttons)
 
@@ -232,14 +240,12 @@ Background handlers, actions, state and components need no changes.
 - Cards do not know the saved status until clicked, and panel actions do not update cards.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
   the highlight is wrong until the next navigation. The data on the backend is correct.
-- Bookmarks and Follow inside carousels are not tracked yet.
 - No authentication yet: the backend uses `DevCurrentUser`.
 - Pixiv images (`i.pximg.net`, thumbnails and avatars) require a `Referer` header; the site will need an image proxy.
 - The panel appears only on artwork pages; artist profile pages (`/users/{id}`) have Later buttons only.
 
 ## Roadmap
 
-- Facade for carousels: bookmark on a card → work `Liked`, Follow on an artist card → `Watching` / `Seen`.
 - Batch lookup so cards show the saved status on appearance, and cards react to panel changes.
 - `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).
