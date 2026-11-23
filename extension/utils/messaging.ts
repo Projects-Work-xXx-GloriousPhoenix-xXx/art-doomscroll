@@ -1,6 +1,7 @@
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { WorkPayload } from '@/utils/pixiv/api';
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
+import type { AuthUser } from '@/utils/auth';
 
 export interface SaveWorkResult {
     workId: string;
@@ -38,6 +39,10 @@ interface ProtocolMap {
     deleteArtist(data: { artistId: string }): void;
     
     lookupLibrary(data: { platform: Platform; works: string[]; artists: string[] }): LookupLibraryResult;
+
+    getUser(): AuthUser | null;
+    signIn(): AuthUser;
+    signOut(): void;
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();
