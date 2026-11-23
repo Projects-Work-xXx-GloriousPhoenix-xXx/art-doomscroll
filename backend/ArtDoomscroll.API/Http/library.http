@@ -1,0 +1,117 @@
+@baseUrl = http://localhost:5256
+
+### ============================================================
+### Setup — run first. Safe to re-run: POSTs are find-or-create.
+### ============================================================
+
+### Artist B — in my library as Watching
+POST {{baseUrl}}/artists
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-artist-B",
+  "profileUrl": "https://www.pixiv.net/users/test-artist-B",
+  "handle": "artist_b",
+  "displayName": "Artist B",
+  "status": "Watching"
+}
+
+### Work 001 by artist A, Liked — A goes to the catalog only
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-001",
+  "url": "https://www.pixiv.net/artworks/test-work-001",
+  "status": "Liked",
+  "artist": {
+    "externalId": "test-artist-A",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-A"
+  }
+}
+
+### Work 002 by artist B, Queued
+POST {{baseUrl}}/works
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "externalId": "test-work-002",
+  "url": "https://www.pixiv.net/artworks/test-work-002",
+  "status": "Queued",
+  "artist": {
+    "externalId": "test-artist-B",
+    "profileUrl": "https://www.pixiv.net/users/test-artist-B"
+  }
+}
+
+### ============================================================
+### LookupLibrary — always 200; only entries in my library are returned
+### ============================================================
+
+### Mixed — expect works: 001 (Liked), 002 (Queued); artists: B (Watching). No 999, no A (catalog-only)
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "works": ["test-work-001", "test-work-002", "test-work-999"],
+  "artists": ["test-artist-A", "test-artist-B"]
+}
+
+### Duplicates and blanks — expect one key test-work-002, no 500
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "works": ["test-work-002", "test-work-002", "", "  "],
+  "artists": ["test-artist-B", "test-artist-B"]
+}
+
+### Only artists (works omitted) — expect works: {}, artists: B
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "artists": ["test-artist-B"]
+}
+
+### Empty lists — expect both {}
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "platform": "Pixiv",
+  "works": [],
+  "artists": []
+}
+
+### Same ids on another platform — expect both {}
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "platform": "X",
+  "works": ["test-work-001", "test-work-002"],
+  "artists": ["test-artist-B"]
+}
+
+### Validation — expect 400 with platform
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "works": ["test-work-001"]
+}
+
+### Validation — 101 works and no platform: expect 400 with platform and works
+POST {{baseUrl}}/library/lookup
+Content-Type: application/json
+
+{
+  "works": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100", "101"]
+}
