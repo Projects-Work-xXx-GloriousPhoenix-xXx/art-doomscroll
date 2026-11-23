@@ -1,8 +1,6 @@
 import { apiFetch, getUser, signIn, signOut } from '@/utils/auth';
 import { onMessage } from '@/utils/messaging';
 
-const API_URL = import.meta.env.WXT_API_URL;
-
 export default defineBackground(() => {
     onMessage('saveWork', async ({ data }) => {
         const res = await apiFetch('/works', {
@@ -70,6 +68,4 @@ export default defineBackground(() => {
     onMessage('getUser', () => getUser());
     onMessage('signIn', () => signIn());
     onMessage('signOut', () => signOut());
-
-    Object.assign(globalThis, { signIn, signOut, getUser });
 });
