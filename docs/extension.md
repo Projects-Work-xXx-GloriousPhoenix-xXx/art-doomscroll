@@ -249,7 +249,8 @@ Background handlers, actions, state and components need no changes.
 ## Known limitations
 
 - Pixiv selectors rely on analytics attributes (`gtm-*`, `data-click-label`, `data-ga4-label`); a Pixiv redesign
-  can break the facade and cards.
+  can break the facade and cards. See [pixiv-dependencies.md](pixiv-dependencies.md) for every selector,
+  internal endpoint and assumption, with a triage table.
 - Cards get their status once, on appearance; later changes from the panel, the facade or another card
   with the same work are not reflected until the card is re-rendered or the page is reloaded.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
