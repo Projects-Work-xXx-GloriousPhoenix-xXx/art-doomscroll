@@ -1,6 +1,6 @@
 import { sendMessage, type AddArtistResult, type SaveWorkResult } from '@/utils/messaging';
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
-import { getState, isBusy, setState } from '@/utils/state';
+import { getState, isBusy, setState, type ArtistState } from '@/utils/state';
 import type { WorkPayload } from '@/utils/pixiv/api';
 
 export async function setWorkStatus(status: WorkStatus) {
@@ -51,16 +51,16 @@ export async function setArtistStatus(status: ArtistStatus) {
     }
 }
 
-export async function queueWork(work: WorkPayload): Promise<SaveWorkResult> {
-    return sendMessage('saveWork', { work });
-}
-
 export async function unqueueWork(workId: string): Promise<void> {
     await sendMessage('deleteWork', { workId });
 }
 
-export async function queueArtist(platform: Platform, artist: WorkPayload['artist']): Promise<AddArtistResult> {
-    return sendMessage('addArtist', { platform, artist });
+export async function queueWork(work: WorkPayload, status?: WorkStatus): Promise<SaveWorkResult> {
+    return sendMessage('saveWork', { work, status });
+}
+
+export async function queueArtist(platform: Platform, artist: WorkPayload['artist'], status?: ArtistStatus): Promise<AddArtistResult> {
+    return sendMessage('addArtist', { platform, artist, status });
 }
 
 export async function unqueueArtist(artistId: string): Promise<void> {
