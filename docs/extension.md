@@ -87,7 +87,7 @@ Pixiv page                                          Extension
 | `utils/messaging.ts` | Typed message protocol (`ProtocolMap`) and result types |
 | `utils/types.ts` | Types mirroring the API contract: `Platform`, `WorkStatus`, `ArtistStatus` |
 | `components/panel/` | Panel UI: renders state, forwards clicks to `toggle*` actions |
-| `components/quick-button/` | `createQuickButton(label, onClick)`: small button in its own shadow root, with undo |
+| `components/quick-button/` | `createQuickButton(label, onClick)` → `{ element, markSaved }`: small button in its own shadow root, with undo |
 
 Actions:
 
@@ -98,6 +98,7 @@ Actions:
 | `removeWork`, `removeArtist` | `toggle*` | DELETE from the library, state back to `idle` / `none` |
 | `queueWork`, `queueArtist` | cards, facade | POST (status optional: cards send none, facade sends one), return the full result; do not touch page state |
 | `unqueueWork`, `unqueueArtist` | cards, `remove*` | DELETE by id |
+| `lookupLibrary` | cards | batch lookup by external ids, split into chunks of 100, results merged |
 
 Key decisions:
 
@@ -207,6 +208,17 @@ per animation frame, disconnected on `ctx.onInvalidated`). Processed cards are m
   if the status was changed in the panel since.
 - Card data is fetched on click, not on injection, to avoid a request per visible card.
 
+### Saved status on appearance
+
+Each observer pass (`scan`) collects the ids of newly injected cards into `Map<externalId, QuickButton[]>`
+(one id can appear in several carousels) and sends a single `lookupLibrary` for all of them.
+Found entries get `markSaved(status)`: `✓ Liked`, disabled, no undo, the same as a click that returned `isNew: false`.
+
+- Already processed cards (`data-ad-done`) are not looked up again, so scrolling sends requests only for new cards.
+- `markSaved` does nothing if the button is busy or has a pending undo: a click made before the lookup returned wins.
+- If the lookup fails, buttons stay `⏱ Later`; a click still shows the real status, since Later never downgrades.
+  The error is logged as `[art-doomscroll] cards: lookup failed`.
+
 ## Messages
 
 Defined in `utils/messaging.ts`, handled in `entrypoints/background.ts`. See [api.md](api.md) for the endpoints.
@@ -214,6 +226,7 @@ Defined in `utils/messaging.ts`, handled in `entrypoints/background.ts`. See [ap
 | Message | API call |
 |---|---|
 | `lookupWork` | `GET /works/lookup` |
+| `lookupLibrary` | `POST /library/lookup` |
 | `saveWork` | `POST /works` (`status` optional) |
 | `updateWorkStatus` | `PATCH /works/{id}/status` |
 | `deleteWork` | `DELETE /works/{id}` |
@@ -237,7 +250,8 @@ Background handlers, actions, state and components need no changes.
 
 - Pixiv selectors rely on analytics attributes (`gtm-*`, `data-click-label`, `data-ga4-label`); a Pixiv redesign
   can break the facade and cards.
-- Cards do not know the saved status until clicked, and panel actions do not update cards.
+- Cards get their status once, on appearance; later changes from the panel, the facade or another card
+  with the same work are not reflected until the card is re-rendered or the page is reloaded.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
   the highlight is wrong until the next navigation. The data on the backend is correct.
 - No authentication yet: the backend uses `DevCurrentUser`.
@@ -246,6 +260,6 @@ Background handlers, actions, state and components need no changes.
 
 ## Roadmap
 
-- Batch lookup so cards show the saved status on appearance, and cards react to panel changes.
+- Cards react to changes made elsewhere on the page (panel, facade, other cards).
 - `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).

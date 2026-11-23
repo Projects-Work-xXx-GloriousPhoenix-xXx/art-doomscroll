@@ -21,6 +21,10 @@
 └── GET    /works/lookup                         [done]     "is this work / its artist in my library?" (for the extension)
            ?platform=&externalId=&artistExternalId=          artistExternalId optional; response { work, artist }, each may be null
 
+/library
+└── POST   /library/lookup                       [done]     which of these works / artists are in my library (batch, for the extension)
+           { platform, works: [externalId], artists: [externalId] }  max 100 each; response maps externalId → { id, status }
+
 /me
 ├── GET    /me                                   [backlog]  current user
 └── GET    /me/stats                             [backlog]  stats: artist and work counts by status
@@ -42,9 +46,12 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
 - `PATCH` and `DELETE` operate on the user's library only: `404` means "not in your library".
   `DELETE` returns `204 No Content`.
 - `lookup` endpoints always return `200`: "not in my library" is a normal answer (`null` fields), not `404`.
+  `POST /library/lookup` returns only the entries found: a missing key means "not in my library".
+  Ids are matched per platform; blanks and duplicates are ignored. Artists are matched by profile `externalId`
+  and return the status of the artist that profile belongs to.
   `GET /works/lookup` resolves the artist by `artistExternalId` independently of the work,
   so a new, unsaved work by an artist I follow still reports the artist's status.
-- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`).
+- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`).
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
 - List filters are optional and combined with AND; no filter means no restriction.

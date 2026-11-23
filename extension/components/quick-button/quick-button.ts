@@ -5,7 +5,12 @@ export interface QuickResult {
     undo?: () => Promise<void>;
 }
 
-export function createQuickButton(label: string, onClick: () => Promise<QuickResult>): HTMLElement {
+export interface QuickButton {
+    element: HTMLElement;
+    markSaved(status: string): void;
+}
+
+export function createQuickButton(label: string, onClick: () => Promise<QuickResult>): QuickButton {
     const host = document.createElement('span');
     const shadow = host.attachShadow({ mode: 'open' });
 
@@ -46,5 +51,12 @@ export function createQuickButton(label: string, onClick: () => Promise<QuickRes
         }
     });
 
-    return host;
+    return {
+        element: host,
+        markSaved(status) {
+            if (button.disabled || undo) return;
+            button.textContent = `✓ ${status}`;
+            button.disabled = true;
+        },
+    };
 }

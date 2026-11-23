@@ -1,7 +1,9 @@
-import { sendMessage, type AddArtistResult, type SaveWorkResult } from '@/utils/messaging';
+import { sendMessage, type AddArtistResult, type LookupLibraryResult, type SaveWorkResult } from '@/utils/messaging';
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
-import { getState, isBusy, setState, type ArtistState } from '@/utils/state';
+import { getState, isBusy, setState } from '@/utils/state';
 import type { WorkPayload } from '@/utils/pixiv/api';
+
+const LOOKUP_CHUNK = 100;
 
 export async function setWorkStatus(status: WorkStatus) {
     const { work, save } = getState();
@@ -115,4 +117,19 @@ export async function toggleArtistStatus(status: ArtistStatus) {
     } else {
         await setArtistStatus(status);
     }
+}
+
+export async function lookupLibrary(platform: Platform, works: string[], artists: string[]): Promise<LookupLibraryResult> {
+    const result: LookupLibraryResult = { works: {}, artists: {} };
+
+    for (let i = 0; i < Math.max(works.length, artists.length); i += LOOKUP_CHUNK) {
+        const part = await sendMessage('lookupLibrary', {
+            platform,
+            works: works.slice(i, i + LOOKUP_CHUNK),
+            artists: artists.slice(i, i + LOOKUP_CHUNK),
+        });
+        Object.assign(result.works, part.works);
+        Object.assign(result.artists, part.artists);
+    }
+    return result;
 }
