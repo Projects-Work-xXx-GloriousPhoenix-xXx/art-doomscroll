@@ -73,4 +73,14 @@ export default defineBackground(() => {
 
         return res.json();
     });
+
+    onMessage('deleteWork', async ({ data }) => {
+        const res = await fetch(`${API_URL}/works/${data.workId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    });
+
+    onMessage('deleteArtist', async ({ data }) => {
+        const res = await fetch(`${API_URL}/artists/${data.artistId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    });
 });

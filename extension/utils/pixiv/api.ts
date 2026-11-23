@@ -1,4 +1,4 @@
-import type { Platform } from "./types";
+import type { Platform } from "../types";
 
 export function getArtworkId(url: string): string | null {
     const match = new URL(url).pathname.match(/^\/(?:en\/)?artworks\/(\d+)/);
@@ -25,7 +25,15 @@ export interface WorkPayload {
         profileUrl: string;
         handle?: string;
         displayName?: string;
+        avatarUrl?: string;
     };
+}
+
+interface PixivUser {
+    userId: string;
+    name: string;
+    pixivId: string;
+    imageBig: string;
 }
 
 export async function fetchWork(id: string): Promise<WorkPayload> {
@@ -36,6 +44,12 @@ export async function fetchWork(id: string): Promise<WorkPayload> {
     }
 
     const illust = json.body as PixivIllust;
+    const artist = await fetchArtist(illust.userId).catch(() => ({
+        externalId: illust.userId,
+        profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
+        handle: illust.userAccount,
+        displayName: illust.userName,
+    }));
 
     return {
         platform: 'Pixiv',
@@ -43,11 +57,23 @@ export async function fetchWork(id: string): Promise<WorkPayload> {
         url: `https://www.pixiv.net/artworks/${illust.illustId}`,
         title: illust.illustTitle,
         thumbnailUrl: illust.urls.small ?? illust.urls.thumb,
-        artist: {
-        externalId: illust.userId,
-        profileUrl: `https://www.pixiv.net/users/${illust.userId}`,
-        handle: illust.userAccount,
-        displayName: illust.userName,
-        },
+        artist
+    };
+}
+
+export async function fetchArtist(userId: string): Promise<WorkPayload['artist']> {
+    const res = await fetch(`/ajax/user/${userId}?full=0`);
+    const json = await res.json();
+    if (!res.ok || json.error) {
+        throw new Error(`Pixiv: ${json.message ?? res.status}`);
+    }
+
+    const user = json.body as PixivUser;
+    return {
+        externalId: user.userId,
+        profileUrl: `https://www.pixiv.net/users/${user.userId}`,
+        handle: user.pixivId,
+        displayName: user.name,
+        avatarUrl: user.imageBig,
     };
 }
