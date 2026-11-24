@@ -47,3 +47,14 @@ button {
 }
 
 button:disabled { opacity: 0.6; cursor: default; }
+
+.profile > div {
+    min-width: 0;
+}
+
+.name,
+.profile .muted {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

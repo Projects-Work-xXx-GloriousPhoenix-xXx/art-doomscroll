@@ -44,10 +44,20 @@ function render(view: View): void {
             }
 
             const info = document.createElement('div');
-            info.append(text('div', user.name, 'name'), text('div', user.email, 'muted'));
+
+            const name = text('div', '', 'name');
+            name.title = user.name;
+
+            const email = text('div', '', 'muted');
+            email.title = user.email;
+
+            info.append(name, email);
             profile.append(info);
 
             app.replaceChildren(profile, button('Sign out', onSignOut));
+
+            fitMiddle(name, user.name);
+            fitEmail(email, user.email);
             break;
         }
     }
@@ -80,6 +90,32 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
     b.textContent = label;
     b.addEventListener('click', onClick);
     return b;
+}
+
+function fitMiddle(el: HTMLElement, text: string, suffix = '', tail = 3): void {
+    const chars = [...text];
+    const build = (head: number) =>
+        chars.slice(0, head).join('') + '…' + chars.slice(-tail).join('') + suffix;
+
+    el.textContent = text + suffix;
+    if (el.scrollWidth <= el.clientWidth) return;
+    if (chars.length <= tail + 1) return;
+
+    let lo = 1;
+    let hi = chars.length - tail - 1;
+    while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        el.textContent = build(mid);
+        if (el.scrollWidth <= el.clientWidth) lo = mid;
+        else hi = mid - 1;
+    }
+    el.textContent = build(lo);
+}
+
+function fitEmail(el: HTMLElement, email: string): void {
+    const at = email.lastIndexOf('@');
+    if (at < 0) fitMiddle(el, email);
+    else fitMiddle(el, email.slice(0, at), email.slice(at));
 }
 
 render({ kind: 'loading' });
