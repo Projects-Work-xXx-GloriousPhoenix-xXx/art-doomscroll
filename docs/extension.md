@@ -148,9 +148,12 @@ ArtistState = checking | none | saving { status } | saved { artistId, status } |
 - `saving` carries the target status so its button is highlighted immediately (optimistic highlight);
   on error the highlight is dropped.
 - `isBusy` (`checking`, `saving`, `removing`) disables the row and shows the spinner.
-- `signedOut` (page-wide, starts `false` to avoid a flash of the hint): set when a request fails with
-  `NotSignedInError`, cleared when `lookupWork` succeeds. While set, the panel shows the sign-in hint instead
-  of the buttons, and `set*` actions return early (hotkeys do nothing).
+- `signedOut` (page-wide): initialized from `getUser` on start, then kept in sync with the session
+  (`storage.watch`); also set when a request fails with `NotSignedInError` and cleared when `lookupWork` succeeds.
+  If `getUser` does not answer it stays `false` (optimistic): the first request corrects it. While set:
+  - the panel shows the sign-in hint instead of the buttons, and `set*` actions return early (hotkeys do nothing);
+  - cards have no Later buttons;
+  - the facade ignores clicks.
 
 ### Artist data
 
@@ -160,20 +163,23 @@ from the illust fields without an avatar, so saving still works.
 
 ## Page lifecycle
 
-1. `main` creates the panel, starts card observation, registers hotkeys and the facade, then calls
-   `handleChangeLocation(location.href)`; `wxt:locationchange` calls it again on SPA navigation.
+1. `main` asks the background `getUser` and sets `signedOut`, then creates the panel, starts card observation,
+   registers hotkeys and the facade, and calls `handleChangeLocation(location.href)`;
+   `wxt:locationchange` calls it again on SPA navigation.
 2. Not an artwork URL: `work: null`, panel is removed.
 3. `fetchWork(id)`; on failure `work: null`.
-4. `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner).
-5. `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
+4. Signed out: `work` set, `save` / `artist` to `idle` / `none`, no API request; the panel shows the hint.
+5. Otherwise `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner), then
+   `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
    - `save`: `saved` if the work is in my library, otherwise `idle`;
    - `artist`: `saved` if the artist is in my library, otherwise `none`.
    - On `NotSignedInError`: `signedOut: true`, the panel shows the sign-in hint.
    - On any other failure both fall back to `idle` / `none`, so saving is still possible.
    - On success: `signedOut: false`.
 6. Signing in or out in the popup changes `local:session`; the content script watches it (`storage.watch`) and
-   reacts only when the session appears or disappears, not on token refresh: sign in reruns
-   `handleChangeLocation`, sign out sets `signedOut: true`. No page reload needed.
+   reacts only when the session appears or disappears, not on token refresh: sign in sets `signedOut: false`
+   (on any page, not only artworks) and reruns `handleChangeLocation`, sign out sets `signedOut: true`.
+   An expired session is covered too: a failed refresh removes it from storage. No page reload needed.
 
 ### Panel buttons
 
@@ -219,11 +225,20 @@ Capture-phase click listener on `document`; Pixiv's own action still happens (no
   (`rgb(255, 64, 96)` = bookmarked). The listener runs in the capture phase, before Pixiv, so it sees the state
   before the click.
 - Requests are fire-and-forget; failures are logged to the page console as `[art-doomscroll] facade: ...`.
+- Signed out, the facade does nothing; Pixiv's bookmark and Follow still work.
 
 ## Cards (Later buttons)
 
 `observeRecommendations` scans the page on start and on every DOM change (`MutationObserver`, throttled to one pass
-per animation frame, disconnected on `ctx.onInvalidated`). Processed cards are marked with `data-ad-done`.
+per animation frame, disconnected on `ctx.onInvalidated`). Processed cards are marked with `data-ad-done`,
+injected buttons with `data-ad-quick`.
+
+Signed out, `scan` does nothing. A subscription reacts only to `signedOut` changes:
+
+- sign out removes every `[data-ad-quick]` button and clears `data-ad-done`;
+- sign in calls `scan`, which injects the buttons again and runs `lookupLibrary` for the new user.
+
+Buttons are removed rather than hidden, so no stale status or undo from the previous session survives.
 
 | Target | Found by | Button | Click |
 |---|---|---|---|
@@ -342,8 +357,6 @@ Background handlers, actions, state and components need no changes.
   with the same work are not reflected until the card is re-rendered or the page is reloaded.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
   the highlight is wrong until the next navigation. The data on the backend is correct.
-- Signed out, only the panel shows a hint. Later buttons and the facade just log the error to the console,
-  and cards get no saved status; reload the page after signing in.
 - While the Google app is in Testing mode, only its test users can sign in.
 - Pixiv images (`i.pximg.net`, thumbnails and avatars) require a `Referer` header; the site will need an image proxy.
 - The panel appears only on artwork pages; artist profile pages (`/users/{id}`) have Later buttons only.
@@ -351,6 +364,5 @@ Background handlers, actions, state and components need no changes.
 ## Roadmap
 
 - Cards react to changes made elsewhere on the page (panel, facade, other cards).
-- Hide Later buttons and skip the facade while signed out; rescan cards after sign-in.
 - `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).
