@@ -1,17 +1,20 @@
 import { handleHotkey } from "@/utils/hotkeys";
-import type { LookupWorkResult } from "@/utils/messaging";
 import { fetchWork, getArtworkId, type WorkPayload } from "@/utils/pixiv/api";
-import { setState } from "@/utils/state";
 import { handleFacadeClick } from "@/utils/pixiv/facade";
 import { createPanel } from "@/components/panel/panel";
 import { observeRecommendations } from "@/utils/pixiv/cards";
 import { storage } from 'wxt/utils/storage';
 import { isNotSignedIn } from '@/utils/errors';
+import { sendMessage, type LookupWorkResult } from "@/utils/messaging";
+import { getState, setState } from "@/utils/state";
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],
     cssInjectionMode: 'ui',
     async main(ctx) {
+        const user = await sendMessage('getUser').catch(() => undefined);
+        setState({ signedOut: user === null });
+
         await createPanel(ctx);
         observeRecommendations(ctx);
         handleChangeLocation(location.href);
@@ -23,6 +26,7 @@ export default defineContentScript({
         const unwatch = storage.watch('local:session', (session, previous) => {
             if (!!session === !!previous) return;
             if (session) {
+                setState({ signedOut: false });
                 handleChangeLocation(location.href);
             } else {
                 setState({ signedOut: true });
@@ -50,6 +54,11 @@ async function handleChangeLocation(url: string) {
     }
 
     if (getArtworkId(location.href) !== id) return;
+    if (getState().signedOut) {
+        setState({ work, save: { kind: 'idle' }, artist: { kind: 'none' } });
+        return;
+    }
+
     setState({ work, save: { kind: 'checking' }, artist: { kind: 'checking' } });
 
     let result: LookupWorkResult;
@@ -81,6 +90,3 @@ async function handleChangeLocation(url: string) {
             : { kind: 'none' },
     })
 }
-
-
-

@@ -11,6 +11,7 @@ const BOOKMARKED_COLOR = 'rgb(255, 64, 96)';
 
 export function handleFacadeClick(e: MouseEvent) {
     if (!(e.target instanceof Element)) return;
+    if (getState().signedOut) return;
 
     if (e.target.closest(BOOKMARK_SELECTOR)) {
         setWorkStatus('Liked');

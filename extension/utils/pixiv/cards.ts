@@ -1,13 +1,14 @@
 import { createQuickButton, type QuickButton } from '@/components/quick-button/quick-button';
 import { queueWork, unqueueWork, queueArtist, unqueueArtist, lookupLibrary } from '@/utils/actions';
 import { fetchWork, fetchArtist, getArtworkId  } from '@/utils/pixiv/api';
-import { getState, setState } from '@/utils/state';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import { getState, setState, subscribe } from '@/utils/state';
 
 // Pixiv DOM: analytics attributes, more stable than generated classes. May break on Pixiv redesigns.
 const WORK_LINK_SELECTOR = 'a[href*="/artworks/"]';
 const FOLLOW_SELECTOR = 'button[data-click-label="follow"]';
 const DONE_ATTR = 'data-ad-done';
+const QUICK_ATTR = 'data-ad-quick';
 
 type Pending = Map<string, QuickButton[]>;
 
@@ -24,8 +25,17 @@ export function observeRecommendations(ctx: ContentScriptContext) {
         });
     });
 
+    let wasSignedOut = getState().signedOut;
+    const unsubscribe = subscribe((s) => {
+        if (s.signedOut === wasSignedOut) return;
+        wasSignedOut = s.signedOut;
+        if (s.signedOut) removeAllButtons();
+        else scan();
+    });
+
     observer.observe(document.body, { childList: true, subtree: true });
     ctx.onInvalidated(() => observer.disconnect());
+    ctx.onInvalidated(() => { unsubscribe(); });
 }
 
 function injectWorkButtons(pending: Pending) {
@@ -53,6 +63,7 @@ function injectWorkButtons(pending: Pending) {
             };
         });
 
+        button.element.setAttribute(QUICK_ATTR, '');
         button.element.style.cssText = 'position: absolute; top: 6px; left: 6px; z-index: 1;';
         card.append(button.element);
 
@@ -78,6 +89,7 @@ function injectArtistButtons(pending: Pending) {
             };
         });
 
+        button.element.setAttribute(QUICK_ATTR, '');
         button.element.style.cssText = 'margin-left: 6px; flex-shrink: 0;';
         followButton.after(button.element);
 
@@ -107,11 +119,17 @@ function addPending(pending: Pending, id: string, button: QuickButton) {
 }
 
 function scan() {
+    if (getState().signedOut) return;
     const works: Pending = new Map();
     const artists: Pending = new Map();
     injectWorkButtons(works);
     injectArtistButtons(artists);
     markSavedCards(works, artists);
+}
+
+function removeAllButtons() {
+    document.querySelectorAll(`[${QUICK_ATTR}]`).forEach((el) => el.remove());
+    document.querySelectorAll(`[${DONE_ATTR}]`).forEach((el) => el.removeAttribute(DONE_ATTR));
 }
 
 async function markSavedCards(works: Pending, artists: Pending) {
