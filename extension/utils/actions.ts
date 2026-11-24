@@ -3,6 +3,7 @@ import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
 import { getState, isBusy, setState } from '@/utils/state';
 import type { WorkPayload } from '@/utils/pixiv/api';
 import { isNotSignedIn } from '@/utils/errors';
+import { emitLibraryChange } from '@/utils/library-events';
 
 const LOOKUP_CHUNK = 100;
 
@@ -17,10 +18,12 @@ export async function setWorkStatus(status: WorkStatus) {
     try {
         if (workId !== null) {
             const result = await sendMessage('updateWorkStatus', { workId, status });
+            emitLibraryChange({ kind: 'work', externalId: work.externalId, status: result.newStatus }); 
             if (getState().work?.externalId !== work.externalId) return;
             setState({ save: { kind: 'saved', workId, status: result.newStatus } });
         } else {
             const result = await sendMessage('saveWork', { work, status });
+            emitLibraryChange({ kind: 'work', externalId: work.externalId, status: result.status }); 
             if (getState().work?.externalId !== work.externalId) return;
             setState({ save: { kind: 'saved', workId: result.workId, status: result.status } });
         }
@@ -45,10 +48,12 @@ export async function setArtistStatus(status: ArtistStatus) {
     try {
         if (artistId !== null) {
             const result = await sendMessage('updateArtistStatus', { artistId, status });
+            emitLibraryChange({ kind: 'artist', externalId: work.artist.externalId, status: result.newStatus }); 
             if (getState().work?.externalId !== work.externalId) return;
             setState({ artist: { kind: 'saved', artistId, status: result.newStatus } });
         } else {
             const result = await sendMessage('addArtist', { platform: work.platform, artist: work.artist, status });
+            emitLibraryChange({ kind: 'artist', externalId: work.artist.externalId, status: result.status }); 
             if (getState().work?.externalId !== work.externalId) return;
             setState({ artist: { kind: 'saved', artistId: result.artistId, status: result.status } });
         }
@@ -62,20 +67,26 @@ export async function setArtistStatus(status: ArtistStatus) {
     }
 }
 
-export async function unqueueWork(workId: string): Promise<void> {
-    await sendMessage('deleteWork', { workId });
-}
-
 export async function queueWork(work: WorkPayload, status?: WorkStatus): Promise<SaveWorkResult> {
-    return sendMessage('saveWork', { work, status });
+    const result = await sendMessage('saveWork', { work, status });
+    emitLibraryChange({ kind: 'work', externalId: work.externalId, status: result.status });
+    return result;
 }
 
 export async function queueArtist(platform: Platform, artist: WorkPayload['artist'], status?: ArtistStatus): Promise<AddArtistResult> {
-    return sendMessage('addArtist', { platform, artist, status });
+    const result = await sendMessage('addArtist', { platform, artist, status });
+    emitLibraryChange({ kind: 'artist', externalId: artist.externalId, status: result.status });
+    return result;
 }
 
-export async function unqueueArtist(artistId: string): Promise<void> {
+export async function unqueueWork(externalId: string, workId: string): Promise<void> {
+    await sendMessage('deleteWork', { workId });
+    emitLibraryChange({ kind: 'work', externalId, status: null });
+}
+
+export async function unqueueArtist(externalId: string, artistId: string): Promise<void> {
     await sendMessage('deleteArtist', { artistId });
+    emitLibraryChange({ kind: 'artist', externalId, status: null });
 }
 
 export async function removeWork() {
@@ -85,7 +96,7 @@ export async function removeWork() {
     const workId = save.workId;
     setState({ save: { kind: 'removing' } });
     try {
-        await unqueueWork(workId);
+        await unqueueWork(work.externalId, workId);
         if (getState().work?.externalId !== work.externalId) return;
         setState({ save: { kind: 'idle' } });
     } catch (e) {
@@ -105,7 +116,7 @@ export async function removeArtist() {
     const artistId = artist.artistId;
     setState({ artist: { kind: 'removing' } });
     try {
-        await unqueueArtist(artistId);
+        await unqueueArtist(work.artist.externalId, artistId);
         if (getState().work?.externalId !== work.externalId) return;
         setState({ artist: { kind: 'none' } });
     } catch (e) {

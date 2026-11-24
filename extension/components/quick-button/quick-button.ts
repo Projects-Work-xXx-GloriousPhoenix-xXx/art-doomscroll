@@ -8,6 +8,7 @@ export interface QuickResult {
 export interface QuickButton {
     element: HTMLElement;
     markSaved(status: string): void;
+    setStatus(status: string | null): void;
 }
 
 export function createQuickButton(label: string, onClick: () => Promise<QuickResult>): QuickButton {
@@ -20,11 +21,14 @@ export function createQuickButton(label: string, onClick: () => Promise<QuickRes
     button.textContent = label;
 
     let undo: (() => Promise<void>) | null = null;
+    let busy = false;
+
     button.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (button.disabled) return;
 
+        busy = true;
         button.disabled = true;
         button.textContent = '…';
         button.title = '';
@@ -49,6 +53,8 @@ export function createQuickButton(label: string, onClick: () => Promise<QuickRes
             button.title = String(err);
             button.disabled = false;
         }
+
+        busy = false;
     });
 
     return {
@@ -57,6 +63,18 @@ export function createQuickButton(label: string, onClick: () => Promise<QuickRes
             if (button.disabled || undo) return;
             button.textContent = `✓ ${status}`;
             button.disabled = true;
+        },
+        setStatus(status) {
+            if (busy) return;
+            undo = null;
+            button.title = '';
+            if (status === null) {
+                button.textContent = label;
+                button.disabled = false;
+            } else {
+                button.textContent = `✓ ${status}`;
+                button.disabled = true;
+            }
         },
     };
 }
