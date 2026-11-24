@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "git",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoLogo"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "icon": { "id": "git-branch", "color": "terminal.ansiRed" },
+            "presentation": { "panel": "dedicated", "reveal": "always", "focus": false, "showReuseMessage": false },
+            "runOptions": { "runOn": "folderOpen" }
+        },
+        {
+            "label": "ext",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoLogo"],
+            "options": { "cwd": "${workspaceFolder}/extension" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "icon": { "id": "extensions", "color": "terminal.ansiYellow" },
+            "presentation": { "panel": "dedicated", "reveal": "always", "focus": false, "showReuseMessage": false },
+            "runOptions": { "runOn": "folderOpen" }
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": { "cwd": "${workspaceFolder}/extension" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "icon": { "id": "play", "color": "terminal.ansiGreen" },
+            "presentation": { "panel": "dedicated", "reveal": "always", "focus": false, "showReuseMessage": false },
+            "runOptions": { "runOn": "folderOpen" }
+        }
+    ]
+}
