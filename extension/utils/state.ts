@@ -21,9 +21,10 @@ export interface PageState {
     work: WorkPayload | null;
     save: SaveState;
     artist: ArtistState;
+    signedOut: boolean;
 }
 
-let state: PageState = { work: null, save: { kind: 'idle' }, artist: { kind: 'none' } };
+let state: PageState = { work: null, save: { kind: 'idle' }, artist: { kind: 'none' }, signedOut: false };
 const listeners = new Set<(s: PageState) => void>();
 
 export function getState(): PageState {

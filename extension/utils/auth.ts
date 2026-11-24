@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { storage } from 'wxt/utils/storage';
+import { NotSignedInError, ApiError } from '@/utils/errors';
 
 const API_URL = import.meta.env.WXT_API_URL;
 const GOOGLE_CLIENT_ID = import.meta.env.WXT_GOOGLE_CLIENT_ID;
@@ -22,17 +23,6 @@ interface Session {
 }
 
 const sessionItem = storage.defineItem<Session>('local:session');
-
-export class NotSignedInError extends Error {
-    override name = 'NotSignedInError';
-}
-
-export class ApiError extends Error {
-    override name = 'ApiError';
-    constructor(public status: number, body: string) {
-        super(`API ${status}: ${body}`);
-    }
-}
 
 export async function signIn(): Promise<AuthUser> {
     const nonce = crypto.randomUUID();

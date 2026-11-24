@@ -28,6 +28,7 @@ export async function createPanel(ctx: ContentScriptContext) {
                         <button data-status="Disliked" class="dislike" title="Dislike">✕ Dislike</button>
                         <span class="row-status"></span>
                     </div>
+                    <div class="signin-hint" hidden>Sign in via the extension popup to save works and artists</div>
                     <div class="hint"></div>
                 </div>
             `;
@@ -68,6 +69,10 @@ export async function createPanel(ctx: ContentScriptContext) {
         root.querySelector('.title')!.textContent = s.work.title ?? '(untitled)';
         const name = s.work.artist.displayName ?? s.work.artist.externalId;
         root.querySelector('.artist')!.textContent = `by ${name}`;
+
+        root.querySelector<HTMLElement>('.artist-actions')!.hidden = s.signedOut;
+        root.querySelector<HTMLElement>('.actions')!.hidden = s.signedOut;
+        root.querySelector<HTMLElement>('.signin-hint')!.hidden = !s.signedOut;
 
         const current = s.save.kind === 'saved' || s.save.kind === 'saving' ? s.save.status : null;
         root.querySelectorAll<HTMLButtonElement>('button[data-status]').forEach((b) => {

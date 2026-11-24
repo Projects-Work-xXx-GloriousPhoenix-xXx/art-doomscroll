@@ -2,12 +2,13 @@ import { sendMessage, type AddArtistResult, type LookupLibraryResult, type SaveW
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
 import { getState, isBusy, setState } from '@/utils/state';
 import type { WorkPayload } from '@/utils/pixiv/api';
+import { isNotSignedIn } from '@/utils/errors';
 
 const LOOKUP_CHUNK = 100;
 
 export async function setWorkStatus(status: WorkStatus) {
-    const { work, save } = getState();
-    if (!work || isBusy(save)) return;
+    const { work, save, signedOut } = getState();
+    if (!work || signedOut || isBusy(save)) return;
     if (save.kind === 'saved' && save.status === status) return;
 
     const workId = save.kind === 'saved' ? save.workId : null;
@@ -25,13 +26,17 @@ export async function setWorkStatus(status: WorkStatus) {
         }
     } catch (e) {
         if (getState().work?.externalId !== work.externalId) return;
+        if (isNotSignedIn(e)) {
+            setState({ signedOut: true, save: { kind: 'idle' } });
+            return;
+        }
         setState({ save: { kind: 'error', message: String(e) } });
     }
 }
 
 export async function setArtistStatus(status: ArtistStatus) {
-    const { work, artist } = getState();
-    if (!work || isBusy(artist)) return;
+    const { work, artist, signedOut } = getState();
+    if (!work || signedOut || isBusy(artist)) return;
     if (artist.kind === 'saved' && artist.status === status) return;
 
     const artistId = artist.kind === 'saved' ? artist.artistId : null;
@@ -49,6 +54,10 @@ export async function setArtistStatus(status: ArtistStatus) {
         }
     } catch (e) {
         if (getState().work?.externalId !== work.externalId) return;
+        if (isNotSignedIn(e)) {
+            setState({ signedOut: true, artist: { kind: 'none' } });
+            return;
+        }
         setState({ artist: { kind: 'error', message: String(e) } });
     }
 }
@@ -81,6 +90,10 @@ export async function removeWork() {
         setState({ save: { kind: 'idle' } });
     } catch (e) {
         if (getState().work?.externalId !== work.externalId) return;
+        if (isNotSignedIn(e)) {
+            setState({ signedOut: true, save: { kind: 'idle' } });
+            return;
+        }
         setState({ save: { kind: 'error', message: String(e) } });
     }
 }
@@ -97,6 +110,10 @@ export async function removeArtist() {
         setState({ artist: { kind: 'none' } });
     } catch (e) {
         if (getState().work?.externalId !== work.externalId) return;
+        if (isNotSignedIn(e)) {
+            setState({ signedOut: true, artist: { kind: 'none' } });
+            return;
+        }
         setState({ artist: { kind: 'error', message: String(e) } });
     }
 }
