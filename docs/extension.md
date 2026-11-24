@@ -9,6 +9,7 @@ Currently supports Pixiv:
 - **Facade**: Pixiv's own bookmark and Follow buttons (on the artwork and in carousels) also save to my library.
 - **Later buttons** on work thumbnails and artist cards anywhere on Pixiv (recommendations, author's works,
   feeds, profiles): save for later without opening the page.
+- **Popup** (toolbar icon): sign in with Google, see the current account, sign out.
 
 ```text
 ┌──────────────────────────────────────────┐
@@ -20,6 +21,9 @@ Currently supports Pixiv:
                                          ◌ request in progress, ⚠ error (hover for details)
 ```
 
+Signed out, the panel still shows the title and artist (they come from Pixiv), but the button rows are replaced
+with "Sign in via the extension popup to save works and artists".
+
 ## Setup
 
 1. Run the backend with the `http` profile (`http://localhost:5256`).
@@ -29,8 +33,12 @@ Currently supports Pixiv:
    Copy-Item extension/.env.example extension/.env
    ```
 
-   `WXT_API_URL` is the API base URL. Its origin is added to `host_permissions` in `wxt.config.ts`;
-   the build fails if the variable is not set.
+   | Variable | Value |
+   |---|---|
+   | `WXT_API_URL` | API base URL. Its origin is added to `host_permissions` in `wxt.config.ts` |
+   | `WXT_GOOGLE_CLIENT_ID` | Google OAuth client id (see [Authentication](#authentication)); must also be in the backend `Google:ClientIds` |
+
+   The build fails if either is not set.
 3. Install and run:
 
    ```powershell
@@ -40,9 +48,11 @@ Currently supports Pixiv:
    ```
 
    WXT opens a separate Chrome profile with the extension loaded.
+4. Open the popup (toolbar icon) and sign in with Google. The account must be a test user of the Google app
+   while it is in Testing mode.
 
 `WXT_*` variables are inlined into the extension bundle and readable by anyone who installs it.
-Never put secrets there.
+Never put secrets there. The Google client id is public; the client secret is not used and must not be added.
 
 Type check: `npm run compile` (`tsc --noEmit`).
 
@@ -55,7 +65,10 @@ Type check: `npm run compile` (`tsc --noEmit`).
   was reloaded. Reload the page; if it persists, restart `npm run dev`.
 - Logs:
   - content script, panel, cards: DevTools of the Pixiv page;
-  - background: `chrome://extensions` → art-doomscroll → "service worker" link (its Network tab shows API calls).
+  - background: `chrome://extensions` → art-doomscroll → "service worker" link (its Network tab shows API calls);
+  - popup: right click inside the popup → Inspect.
+- Session in storage: in the service worker console, `await chrome.storage.local.get('session')`.
+  `await chrome.storage.local.remove('session')` signs out locally without calling the backend.
 - HTTPS redirection is disabled in Development on the backend: a redirect to `https://localhost:7217` would break
   requests, since only the `WXT_API_URL` origin is in `host_permissions`.
 - WXT auto-imports everything exported from `utils/`, so a missing import still works at runtime and may silently
@@ -65,19 +78,25 @@ Type check: `npm run compile` (`tsc --noEmit`).
 
 ```text
 Pixiv page                                          Extension
-┌─────────────────────────────────────┐  sendMessage  ┌──────────────┐   fetch   ┌─────┐
-│ content script                      │ ────────────> │ background   │ ────────> │ API │
-│  pixiv/api   (/ajax/illust, /user)  │ <──────────── │ (service     │ <──────── │     │
-│  state ─> panel (Shadow DOM)        │    result     │  worker)     │           └─────┘
-│  hotkeys, facade ─> actions         │               └──────────────┘
-│  cards ─> quick buttons ─> actions  │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────┐  sendMessage  ┌──────────────┐  apiFetch  ┌─────┐
+│ content script                      │ ────────────> │ background   │ ─────────> │ API │
+│  pixiv/api   (/ajax/illust, /user)  │ <──────────── │ (service     │ <───────── │     │
+│  state ─> panel (Shadow DOM)        │    result     │  worker)     │            └─────┘
+│  hotkeys, facade ─> actions         │               │  auth        │ launchWebAuthFlow
+│  cards ─> quick buttons ─> actions  │               │  tokens in   │ ─────────> Google
+└─────────────────────────────────────┘               │  storage     │
+                                       sendMessage    │              │
+                          popup ────────────────────> │              │
+                                                      └──────────────┘
 ```
 
 | File | Role |
 |---|---|
 | `entrypoints/pixiv.content.ts` | Pixiv content script: wires everything up, tracks SPA navigation, runs lookup, fills state |
 | `entrypoints/background.ts` | Message handlers; the only place that calls the API |
+| `entrypoints/popup/` | Popup: account, sign in, sign out |
+| `utils/auth.ts` | Background only: `signIn`, `signOut`, `getUser`, `apiFetch` (token, refresh, retry) |
+| `utils/errors.ts` | `NotSignedInError`, `ApiError`, `isNotSignedIn(e)`; shared by background and content script |
 | `utils/pixiv/api.ts` | `getArtworkId(url)`, `fetchWork(id)`, `fetchArtist(userId)`: Pixiv data mapped to `WorkPayload` |
 | `utils/pixiv/facade.ts` | `handleFacadeClick`: Pixiv's bookmark / Follow buttons (artwork and carousels) call actions |
 | `utils/pixiv/cards.ts` | `observeRecommendations`: injects Later buttons into thumbnails and artist cards |
@@ -104,6 +123,8 @@ Key decisions:
 
 - **API calls go through the background.** It has `host_permissions` for the API origin, so the backend needs no CORS.
   The content script only fetches Pixiv's own `/ajax/*` endpoints (same origin as the page).
+- **Tokens never leave the background.** Popup and content script only send messages (`signIn`, `getUser`, ...);
+  `auth.ts` is imported by the background only, the others import its types.
 - **Content scripts know the site, the background and actions do not.** Pixiv code (`utils/pixiv/`) builds
   a `WorkPayload` with its `platform`; messages and actions carry the platform and stay platform-agnostic.
 - **One state, one direction.** Content script and actions write state; the panel only renders it.
@@ -127,6 +148,9 @@ ArtistState = checking | none | saving { status } | saved { artistId, status } |
 - `saving` carries the target status so its button is highlighted immediately (optimistic highlight);
   on error the highlight is dropped.
 - `isBusy` (`checking`, `saving`, `removing`) disables the row and shows the spinner.
+- `signedOut` (page-wide, starts `false` to avoid a flash of the hint): set when a request fails with
+  `NotSignedInError`, cleared when `lookupWork` succeeds. While set, the panel shows the sign-in hint instead
+  of the buttons, and `set*` actions return early (hotkeys do nothing).
 
 ### Artist data
 
@@ -144,7 +168,12 @@ from the illust fields without an avatar, so saving still works.
 5. `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
    - `save`: `saved` if the work is in my library, otherwise `idle`;
    - `artist`: `saved` if the artist is in my library, otherwise `none`.
-   - On failure both fall back to `idle` / `none`, so saving is still possible.
+   - On `NotSignedInError`: `signedOut: true`, the panel shows the sign-in hint.
+   - On any other failure both fall back to `idle` / `none`, so saving is still possible.
+   - On success: `signedOut: false`.
+6. Signing in or out in the popup changes `local:session`; the content script watches it (`storage.watch`) and
+   reacts only when the session appears or disappears, not on token refresh: sign in reruns
+   `handleChangeLocation`, sign out sets `signedOut: true`. No page reload needed.
 
 ### Panel buttons
 
@@ -219,12 +248,69 @@ Found entries get `markSaved(status)`: `✓ Liked`, disabled, no undo, the same 
 - If the lookup fails, buttons stay `⏱ Later`; a click still shows the real status, since Later never downgrades.
   The error is logged as `[art-doomscroll] cards: lookup failed`.
 
+## Authentication
+
+Google sign-in, then the backend's own JWT pair. Backend side: see the Authentication section of [api.md](api.md).
+
+### Google setup
+
+- **Fixed extension id.** Google only redirects to pre-registered URIs, and the redirect URI contains the extension id.
+  An unpacked extension's id depends on its folder path (it differs between `chrome-mv3-dev` and `chrome-mv3`),
+  so `wxt.config.ts` sets the manifest `key` (a public RSA key); the id is derived from it and is the same everywhere.
+  The private key is not needed and must not be committed.
+- **OAuth client** of type *Web application* in Google Auth Platform, redirect URI `https://<extension-id>.chromiumapp.org/`
+  (with the trailing slash; it must equal `browser.identity.getRedirectURL()`). The *Chrome Extension* client type
+  does not fit: it works with `getAuthToken`, which returns a Google access token, while the backend needs an ID token.
+- Manifest permissions: `identity` (`launchWebAuthFlow`, `getRedirectURL`) and `storage` (tokens).
+
+### Sign in
+
+1. The popup sends `signIn`; the background runs `browser.identity.launchWebAuthFlow` with
+   `response_type=id_token`, `scope=openid email profile`, a random `nonce` and `prompt=select_account`.
+2. Google redirects to `https://<id>.chromiumapp.org/#id_token=...`; Chrome hands that URL back.
+3. The background decodes the ID token payload (no signature check: the backend does that) and checks `nonce`.
+4. `POST /auth/google { idToken }` returns the token pair; it is stored with the user's name, email and picture
+   (taken from the ID token) as `local:session`.
+
+The popup closes as soon as the Google window takes focus, so its `await` never resolves; the background finishes
+sign-in anyway, and the popup shows the account the next time it opens.
+
+### Requests and refresh
+
+`apiFetch(path, init)` adds `Authorization: Bearer <accessToken>` and:
+
+- refreshes first if the access token expires in under 30 seconds;
+- on `401` refreshes once and retries once;
+- throws `NotSignedInError` if there is no session or refresh fails, `ApiError(status, body)` on other non-2xx.
+
+Refresh rules (the backend revokes all sessions when a refresh token is reused):
+
+- **One refresh at a time.** `refresh()` keeps the in-flight promise; parallel callers share it.
+- It reads the refresh token from storage when it runs, so a request that hit `401` after someone else refreshed
+  sends the new token, not the old one.
+- The session is removed only on `401` from `/auth/refresh`. Network errors and `5xx` keep it, so a backend restart
+  does not sign the user out.
+
+### Sign out
+
+`signOut` removes the session locally first, then calls `POST /auth/logout` without waiting for the result:
+sign-out works offline, and the refresh token expires on its own if the call fails.
+
+### Errors across contexts
+
+`@webext-core/messaging` serializes errors to `{ name, message, stack, ...own fields }` and rebuilds a plain `Error`,
+so `instanceof NotSignedInError` is always `false` outside the background. Check `isNotSignedIn(e)`, which
+compares `name`. `errors.ts` is a separate file so the content script can use it without bundling `auth.ts`.
+
 ## Messages
 
 Defined in `utils/messaging.ts`, handled in `entrypoints/background.ts`. See [api.md](api.md) for the endpoints.
 
 | Message | API call |
 |---|---|
+| `getUser` | none: the stored user or `null` |
+| `signIn` | Google, then `POST /auth/google` |
+| `signOut` | `POST /auth/logout` |
 | `lookupWork` | `GET /works/lookup` |
 | `lookupLibrary` | `POST /library/lookup` |
 | `saveWork` | `POST /works` (`status` optional) |
@@ -234,7 +320,8 @@ Defined in `utils/messaging.ts`, handled in `entrypoints/background.ts`. See [ap
 | `updateArtistStatus` | `PATCH /artists/{id}/status` |
 | `deleteArtist` | `DELETE /artists/{id}` |
 
-Handlers throw on non-2xx responses with `API {status}: {body}`; the caller catches it and sets `error` state.
+All API handlers go through `apiFetch`, which throws `ApiError` (`API {status}: {body}`) on non-2xx responses and
+`NotSignedInError` without a session; the caller catches it and sets `error` state or `signedOut`.
 `DELETE` returns `204 No Content`, so its handlers do not call `res.json()`.
 
 ## Adding a platform
@@ -255,12 +342,15 @@ Background handlers, actions, state and components need no changes.
   with the same work are not reflected until the card is re-rendered or the page is reloaded.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
   the highlight is wrong until the next navigation. The data on the backend is correct.
-- No authentication yet: the backend uses `DevCurrentUser`.
+- Signed out, only the panel shows a hint. Later buttons and the facade just log the error to the console,
+  and cards get no saved status; reload the page after signing in.
+- While the Google app is in Testing mode, only its test users can sign in.
 - Pixiv images (`i.pximg.net`, thumbnails and avatars) require a `Referer` header; the site will need an image proxy.
 - The panel appears only on artwork pages; artist profile pages (`/users/{id}`) have Later buttons only.
 
 ## Roadmap
 
 - Cards react to changes made elsewhere on the page (panel, facade, other cards).
+- Hide Later buttons and skip the facade while signed out; rescan cards after sign-in.
 - `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).
