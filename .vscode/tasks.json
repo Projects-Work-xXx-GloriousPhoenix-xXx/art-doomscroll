@@ -35,6 +35,17 @@
             "icon": { "id": "play", "color": "terminal.ansiGreen" },
             "presentation": { "panel": "dedicated", "reveal": "always", "focus": false, "showReuseMessage": false },
             "runOptions": { "runOn": "folderOpen" }
+        },
+        {
+            "label": "api",
+            "type": "shell",
+            "command": "dotnet watch run --launch-profile http",
+            "options": { "cwd": "${workspaceFolder}/backend/ArtDoomscroll.API" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "icon": { "id": "server", "color": "terminal.ansiBlue" },
+            "presentation": { "panel": "dedicated", "reveal": "always", "focus": false, "showReuseMessage": false },
+            "runOptions": { "runOn": "folderOpen" }
         }
     ]
 }
