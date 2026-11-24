@@ -58,3 +58,10 @@
 }
 .row-status.error::after { content: '⚠'; color: #f59e0b; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+[hidden] { display: none !important; }
+
+.signin-hint {
+    font-size: 12px;
+    opacity: 0.75;
+}

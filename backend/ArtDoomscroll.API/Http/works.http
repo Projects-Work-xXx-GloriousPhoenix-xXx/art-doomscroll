@@ -1,12 +1,21 @@
 @baseUrl = http://localhost:5256
 
 ### ============================================================
+### Auth — run first. Access token lives 15 min: re-run on 401.
+### ============================================================
+
+### Dev sign-in (Development only)
+# @name dev
+POST {{baseUrl}}/auth/dev
+
+### ============================================================
 ### Setup — run first. Safe to re-run: POSTs are find-or-create.
 ### ============================================================
 
 ### Artist B — in my library as Watching
 # @name artistB
 POST {{baseUrl}}/artists
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -21,6 +30,7 @@ Content-Type: application/json
 ### Work 001 by artist A — A goes to the catalog only
 # @name work001
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -40,6 +50,7 @@ Content-Type: application/json
 ### Work 002 by artist B — expect artistStatus filled
 # @name work002
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -55,6 +66,7 @@ Content-Type: application/json
 ### Work 003 on X by artist C, Liked
 # @name work003
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -76,6 +88,7 @@ Content-Type: application/json
 
 ### Re-save work 001 without status — expect 200, status unchanged
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -90,6 +103,7 @@ Content-Type: application/json
 
 ### Validation — expect 400 with externalId, url, artist.externalId
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -103,6 +117,7 @@ Content-Type: application/json
 
 ### Validation — expect 400 with platform and artist
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -112,6 +127,7 @@ Content-Type: application/json
 
 ### Invalid enum in body — expect 400 from BadRequestExceptionHandler
 POST {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -127,27 +143,35 @@ Content-Type: application/json
 
 ### All — expect 3 (after a clean DB)
 GET {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Paging — expect 1 item, hasPrevious and hasNext both true
 GET {{baseUrl}}/works?pageSize=1&page=2
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Status — expect only "Night city"
 GET {{baseUrl}}/works?status=Liked
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Platform — expect only "Night city"
 GET {{baseUrl}}/works?platform=X
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Search by title (case-insensitive) — expect "Night city"
 GET {{baseUrl}}/works?search=NIGHT
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Search by artist handle — expect test-work-002
 GET {{baseUrl}}/works?search=artist_b
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### By artist — expect only test-work-002
 GET {{baseUrl}}/works?artistId={{artistB.response.body.$.artistId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Invalid enum in query — check the error message
 GET {{baseUrl}}/works?status=Loved
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### ============================================================
 ### UpdateWorkStatus
@@ -155,6 +179,7 @@ GET {{baseUrl}}/works?status=Loved
 
 ### Work 001 -> Disliked — expect newStatus: Disliked
 PATCH {{baseUrl}}/works/{{work001.response.body.$.workId}}/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -163,6 +188,7 @@ Content-Type: application/json
 
 ### Unknown work — expect 404
 PATCH {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {
@@ -171,6 +197,7 @@ Content-Type: application/json
 
 ### Missing status — expect 400
 PATCH {{baseUrl}}/works/{{work001.response.body.$.workId}}/status
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 Content-Type: application/json
 
 {}
@@ -181,12 +208,15 @@ Content-Type: application/json
 
 ### Work 002 — expect library filled, artist.status filled (artist B is in my library)
 GET {{baseUrl}}/works/{{work002.response.body.$.workId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Work 001 — expect artist.status: null (artist A is catalog-only)
 GET {{baseUrl}}/works/{{work001.response.body.$.workId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Unknown work — expect 404 "Work not found"
 GET {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### ============================================================
 ### LookupWork — always 200; work/artist are null when not in my library
@@ -194,21 +224,27 @@ GET {{baseUrl}}/works/00000000-0000-0000-0000-00000000dead
 
 ### Saved work by artist B — expect work and artist both filled
 GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-002&artistExternalId=test-artist-B
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### New work by followed artist B — expect work: null, artist filled
 GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-999&artistExternalId=test-artist-B
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Saved work by catalog-only artist A — expect work filled, artist: null
 GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-001&artistExternalId=test-artist-A
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Without artistExternalId — expect artist: null
 GET {{baseUrl}}/works/lookup?platform=Pixiv&externalId=test-work-002
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Same externalId on another platform — expect work: null, artist: null
 GET {{baseUrl}}/works/lookup?platform=X&externalId=test-work-002&artistExternalId=test-artist-B
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Validation — expect 400 with platform and externalId
 GET {{baseUrl}}/works/lookup?externalId=
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### ============================================================
 ### DeleteWork — run last. Re-run Setup to restore the deleted entry.
@@ -216,12 +252,16 @@ GET {{baseUrl}}/works/lookup?externalId=
 
 ### Delete work 003 from my library — expect 204
 DELETE {{baseUrl}}/works/{{work003.response.body.$.workId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Work 003 still in the catalog — expect 200 with library: null
 GET {{baseUrl}}/works/{{work003.response.body.$.workId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Not in my library anymore — expect only 2 works
 GET {{baseUrl}}/works
+Authorization: Bearer {{dev.response.body.$.accessToken}}
 
 ### Delete again — expect 404 "not found in your library"
 DELETE {{baseUrl}}/works/{{work003.response.body.$.workId}}
+Authorization: Bearer {{dev.response.body.$.accessToken}}

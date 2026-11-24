@@ -17,7 +17,8 @@ public static class DevDataSeeder
         db.Users.Add(new User
         {
             Id = DevCurrentUser.DevUserId,
-            DisplayName = "Dev User"
+            DisplayName = "Dev User",
+            Email = "dev@localhost",
         });
 
         await db.SaveChangesAsync();

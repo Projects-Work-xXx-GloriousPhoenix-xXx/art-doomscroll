@@ -5,6 +5,8 @@ import { setState } from "@/utils/state";
 import { handleFacadeClick } from "@/utils/pixiv/facade";
 import { createPanel } from "@/components/panel/panel";
 import { observeRecommendations } from "@/utils/pixiv/cards";
+import { storage } from 'wxt/utils/storage';
+import { isNotSignedIn } from '@/utils/errors';
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],
@@ -17,6 +19,16 @@ export default defineContentScript({
         ctx.addEventListener(window, 'wxt:locationchange', ({ newUrl }) => handleChangeLocation(newUrl.href));
         ctx.addEventListener(window, 'keydown', (e) => handleHotkey(e))
         ctx.addEventListener(document, 'click', (e) => handleFacadeClick(e), { capture: true });
+
+        const unwatch = storage.watch('local:session', (session, previous) => {
+            if (!!session === !!previous) return;
+            if (session) {
+                handleChangeLocation(location.href);
+            } else {
+                setState({ signedOut: true });
+            }
+        });
+        ctx.onInvalidated(unwatch);
     },
 });
 
@@ -48,14 +60,19 @@ async function handleChangeLocation(url: string) {
             artistExternalId: work.artist.externalId
         });
     }
-    catch {
+    catch(e) {
         if (getArtworkId(location.href) !== id) return;
+        if (isNotSignedIn(e)) {
+            setState({ signedOut: true, save: { kind: 'idle' }, artist: { kind: 'none' } });
+            return;
+        }
         setState({ save: { kind: 'idle' }, artist: { kind: 'none' } });
         return;
     }
 
     if (getArtworkId(location.href) !== id) return;
     setState({
+        signedOut: false,
         save: result.work
             ? { kind: 'saved', workId: result.work.workId, status: result.work.status }
             : { kind: 'idle' },
