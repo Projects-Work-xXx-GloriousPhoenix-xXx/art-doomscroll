@@ -20,6 +20,8 @@ Shared code (`actions`, `state`, `messaging`, `background`, `components`) does n
 | No Later buttons on thumbnails | thumbnail link or lazy image markup changed | `WORK_LINK_SELECTOR`, `img, figure` check in `utils/pixiv/cards.ts` |
 | Later button in the wrong place on thumbnails | thumbnail wrapper changed | `link.parentElement` as the card in `injectWorkButtons` |
 | No Later buttons on artist cards, or misplaced | Follow button or its row changed | `FOLLOW_SELECTOR`, `followButton.parentElement` in `injectArtistButtons` |
+| Later button shows another work's / author's status after navigation | Pixiv reuses DOM differently (new attribute carries the id) | `attributeFilter` in `observeRecommendations`, `DONE_ATTR` rebinding in `cards.ts` |
+| Later buttons on small icons, or missing on small thumbnails | thumbnail or icon sizes changed | `MIN_THUMB_SIZE` in `cards.ts` |
 | Panel does not update after navigating between works | SPA navigation detection | `wxt:locationchange` in `entrypoints/pixiv.content.ts` |
 
 ## Internal API
@@ -64,6 +66,8 @@ but still not guaranteed.
 | `WORK_LINK_SELECTOR` | `a[href*="/artworks/"]` | `cards.ts` | work thumbnails | a thumbnail link contains `<img>` or a lazy `<figure>` placeholder; text links (titles) do not |
 | card container | `link.parentElement` | `cards.ts` | where the work Later button goes | the link's parent is the square thumbnail box |
 | artist row | `followButton.parentElement` | `cards.ts` | where the artist Later button goes, `data-ad-done` mark | the Follow button sits in a row next to avatar and name |
+| `MIN_THUMB_SIZE` | `64` (px, link width) | `cards.ts` | skip event icons that link to an artwork | icons are 16–24px, thumbnails 80px+ |
+| reused DOM | `attributeFilter: ['href', 'data-gtm-user-id']` | `cards.ts` | rebind a card when Pixiv swaps its data on SPA navigation | React keeps the element and changes only these attributes |
 
 ## Diagnosing a selector
 

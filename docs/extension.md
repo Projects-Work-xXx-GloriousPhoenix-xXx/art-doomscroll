@@ -103,10 +103,11 @@ Pixiv page                                          Extension
 | `utils/hotkeys.ts` | `bindings`, `handleHotkey`, `describeBinding` |
 | `utils/actions.ts` | User actions (see below) |
 | `utils/state.ts` | Page state store: `getState`, `setState`, `subscribe`, `isBusy` |
+| `utils/library-events.ts` | `emitLibraryChange` / `onLibraryChange`: "this work or artist changed in my library", for cards |
 | `utils/messaging.ts` | Typed message protocol (`ProtocolMap`) and result types |
 | `utils/types.ts` | Types mirroring the API contract: `Platform`, `WorkStatus`, `ArtistStatus` |
 | `components/panel/` | Panel UI: renders state, forwards clicks to `toggle*` actions |
-| `components/quick-button/` | `createQuickButton(label, onClick)` → `{ element, markSaved }`: small button in its own shadow root, with undo |
+| `components/quick-button/` | `createQuickButton(label, onClick)` → `{ element, markSaved, setStatus }`: small button in its own shadow root, with undo |
 
 Actions:
 
@@ -116,8 +117,12 @@ Actions:
 | `toggleWorkStatus`, `toggleArtistStatus` | panel | like `set*`, but clicking the active status calls `remove*` |
 | `removeWork`, `removeArtist` | `toggle*` | DELETE from the library, state back to `idle` / `none` |
 | `queueWork`, `queueArtist` | cards, facade | POST (status optional: cards send none, facade sends one), return the full result; do not touch page state |
-| `unqueueWork`, `unqueueArtist` | cards, `remove*` | DELETE by id |
+| `unqueueWork`, `unqueueArtist` | cards, `remove*` | DELETE by id; take the `externalId` too, for the change event |
 | `lookupLibrary` | cards | batch lookup by external ids, split into chunks of 100, results merged |
+
+Every action that changes the library emits a library change (`{ kind, externalId, status | null }`) once the API
+has answered, and before the "still on the same work" check: cards need it even if the user has navigated away.
+`remove*` emit through `unqueue*`. Failed requests emit nothing.
 
 Key decisions:
 
@@ -148,9 +153,12 @@ ArtistState = checking | none | saving { status } | saved { artistId, status } |
 - `saving` carries the target status so its button is highlighted immediately (optimistic highlight);
   on error the highlight is dropped.
 - `isBusy` (`checking`, `saving`, `removing`) disables the row and shows the spinner.
-- `signedOut` (page-wide, starts `false` to avoid a flash of the hint): set when a request fails with
-  `NotSignedInError`, cleared when `lookupWork` succeeds. While set, the panel shows the sign-in hint instead
-  of the buttons, and `set*` actions return early (hotkeys do nothing).
+- `signedOut` (page-wide): initialized from `getUser` on start, then kept in sync with the session
+  (`storage.watch`); also set when a request fails with `NotSignedInError` and cleared when `lookupWork` succeeds.
+  If `getUser` does not answer it stays `false` (optimistic): the first request corrects it. While set:
+  - the panel shows the sign-in hint instead of the buttons, and `set*` actions return early (hotkeys do nothing);
+  - cards have no Later buttons;
+  - the facade ignores clicks.
 
 ### Artist data
 
@@ -160,20 +168,23 @@ from the illust fields without an avatar, so saving still works.
 
 ## Page lifecycle
 
-1. `main` creates the panel, starts card observation, registers hotkeys and the facade, then calls
-   `handleChangeLocation(location.href)`; `wxt:locationchange` calls it again on SPA navigation.
+1. `main` asks the background `getUser` and sets `signedOut`, then creates the panel, starts card observation,
+   registers hotkeys and the facade, and calls `handleChangeLocation(location.href)`;
+   `wxt:locationchange` calls it again on SPA navigation.
 2. Not an artwork URL: `work: null`, panel is removed.
 3. `fetchWork(id)`; on failure `work: null`.
-4. `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner).
-5. `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
+4. Signed out: `work` set, `save` / `artist` to `idle` / `none`, no API request; the panel shows the hint.
+5. Otherwise `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner), then
+   `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
    - `save`: `saved` if the work is in my library, otherwise `idle`;
    - `artist`: `saved` if the artist is in my library, otherwise `none`.
    - On `NotSignedInError`: `signedOut: true`, the panel shows the sign-in hint.
    - On any other failure both fall back to `idle` / `none`, so saving is still possible.
    - On success: `signedOut: false`.
 6. Signing in or out in the popup changes `local:session`; the content script watches it (`storage.watch`) and
-   reacts only when the session appears or disappears, not on token refresh: sign in reruns
-   `handleChangeLocation`, sign out sets `signedOut: true`. No page reload needed.
+   reacts only when the session appears or disappears, not on token refresh: sign in sets `signedOut: false`
+   (on any page, not only artworks) and reruns `handleChangeLocation`, sign out sets `signedOut: true`.
+   An expired session is covered too: a failed refresh removes it from storage. No page reload needed.
 
 ### Panel buttons
 
@@ -219,22 +230,42 @@ Capture-phase click listener on `document`; Pixiv's own action still happens (no
   (`rgb(255, 64, 96)` = bookmarked). The listener runs in the capture phase, before Pixiv, so it sees the state
   before the click.
 - Requests are fire-and-forget; failures are logged to the page console as `[art-doomscroll] facade: ...`.
+- Signed out, the facade does nothing; Pixiv's bookmark and Follow still work.
 
 ## Cards (Later buttons)
 
 `observeRecommendations` scans the page on start and on every DOM change (`MutationObserver`, throttled to one pass
-per animation frame, disconnected on `ctx.onInvalidated`). Processed cards are marked with `data-ad-done`.
+per animation frame, disconnected on `ctx.onInvalidated`). It watches added nodes and changes of `href` /
+`data-gtm-user-id`. Processed cards are marked with `data-ad-done="<externalId>"`, injected buttons with `data-ad-quick`.
+
+**Pixiv reuses DOM on SPA navigation.** React keeps the same card and author row and only swaps `href` or
+`data-gtm-user-id`. So the marker stores the id the button was made for: same id, skip; different id, `unbind`
+(remove our button, clear the marker) and inject a new one. Without this a reused row keeps the previous
+author's button and status.
+
+Signed out, `scan` does nothing. A subscription reacts only to `signedOut` changes:
+
+- sign out removes every `[data-ad-quick]` button and clears `data-ad-done`;
+- sign in calls `scan`, which injects the buttons again and runs `lookupLibrary` for the new user.
+
+Buttons are removed rather than hidden, so no stale status or undo from the previous session survives.
 
 | Target | Found by | Button | Click |
 |---|---|---|---|
-| Work thumbnail | `a[href*="/artworks/"]` containing `img` or `figure` (lazy placeholder) | top-left corner of the link's parent | `queueWork(await fetchWork(id))` |
+| Work thumbnail | `a[href*="/artworks/"]` containing `img` or `figure` (lazy placeholder), at least 64px wide | top-left corner of the link's parent | `queueWork(await fetchWork(id))` |
 | Artist card | `button[data-click-label="follow"]`, except the current work's author | right after the Follow button | `queueArtist('Pixiv', await fetchArtist(id))` |
+
+- **Small links are skipped** (event icons such as the "Fall leaves effect" badge link to an artwork with an image
+  inside). Width 0 means not laid out yet, so such links are not skipped and get no marker until checked again.
+- **The current work's author gets no button**: the panel's artist row owns it. `currentArtistId` comes from state,
+  which is set after `fetchWork`, so a scan right after navigation can still inject one. A state subscription removes
+  the current author's buttons (`unbindArtist`) whenever the current work changes; the button may flash briefly.
 
 - **Later sends no status.** A new entry gets the default `Queued`; an existing one keeps its status, and the button
   shows it (`✓ Liked`) and becomes disabled. Later never downgrades.
 - **Undo** is offered only when this click created the entry (`isNew`): clicking `✓ Queued` deletes it.
 - **Current work's card** stays in sync with the panel: Later updates the panel, and undo is refused
-  if the status was changed in the panel since.
+  if the status was changed in the panel since (see also [Sync](#sync-with-the-rest-of-the-page)).
 - Card data is fetched on click, not on injection, to avoid a request per visible card.
 
 ### Saved status on appearance
@@ -247,6 +278,28 @@ Found entries get `markSaved(status)`: `✓ Liked`, disabled, no undo, the same 
 - `markSaved` does nothing if the button is busy or has a pending undo: a click made before the lookup returned wins.
 - If the lookup fails, buttons stay `⏱ Later`; a click still shows the real status, since Later never downgrades.
   The error is logged as `[art-doomscroll] cards: lookup failed`.
+
+### Sync with the rest of the page
+
+Cards keep a registry `Map<externalId, Set<QuickButton>>` for works and for artists (one id can be in several
+carousels) and subscribe to library changes. A change calls `setStatus` on every button of that id:
+`✓ Liked` and disabled, or back to `⏱ Later` when `status` is `null` (removed).
+
+| Change made in | Updates |
+|---|---|
+| Panel, hotkeys (status, removal) | every card of that work or artist |
+| Later on one card | other cards of the same work or artist |
+| Undo on a card | other cards back to `⏱ Later`; the panel too, if it is the current work |
+| Facade (bookmark, Follow) | cards of that work or artist |
+
+- `setStatus` is authoritative (a fresh fact), `markSaved` is cautious (a lookup that may be older than a click).
+- `setStatus` drops a pending undo: once the status was changed elsewhere, undo would delete an entry the user
+  has deliberately changed.
+- It skips a button whose own click is in flight (`busy`): that click emits the same change before it finishes,
+  and its handler then sets the right result, including undo.
+- Buttons removed by Pixiv (`isConnected` false) are pruned from the registry on the next change for their id.
+  `removeAllButtons` clears the registry.
+- Cards to panel works as before: Later on the current work's card updates the panel state.
 
 ## Authentication
 
@@ -338,19 +391,13 @@ Background handlers, actions, state and components need no changes.
 - Pixiv selectors rely on analytics attributes (`gtm-*`, `data-click-label`, `data-ga4-label`); a Pixiv redesign
   can break the facade and cards. See [pixiv-dependencies.md](pixiv-dependencies.md) for every selector,
   internal endpoint and assumption, with a triage table.
-- Cards get their status once, on appearance; later changes from the panel, the facade or another card
-  with the same work are not reflected until the card is re-rendered or the page is reloaded.
 - Changing an artist's status and immediately opening another work by the same artist may drop the response;
   the highlight is wrong until the next navigation. The data on the backend is correct.
-- Signed out, only the panel shows a hint. Later buttons and the facade just log the error to the console,
-  and cards get no saved status; reload the page after signing in.
 - While the Google app is in Testing mode, only its test users can sign in.
 - Pixiv images (`i.pximg.net`, thumbnails and avatars) require a `Referer` header; the site will need an image proxy.
 - The panel appears only on artwork pages; artist profile pages (`/users/{id}`) have Later buttons only.
 
 ## Roadmap
 
-- Cards react to changes made elsewhere on the page (panel, facade, other cards).
-- Hide Later buttons and skip the facade while signed out; rescan cards after sign-in.
 - `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).
