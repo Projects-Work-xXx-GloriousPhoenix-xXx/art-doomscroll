@@ -24,9 +24,12 @@
 └── POST   /library/lookup                       [done]     which of these works / artists are in my library (batch, for the extension)
            { platform, works: [externalId], artists: [externalId] }  max 100 each; response maps externalId → { id, status }
 
+/images                                                     anonymous
+└── GET    /images?url=                          [done]     image proxy for hosts that need a Referer (i.pximg.net)
+
 /me
-├── GET    /me                                   [backlog]  current user
-└── GET    /me/stats                             [backlog]  stats: artist and work counts by status
+├── GET    /me                                   [done]     current user: id, displayName, email, avatarUrl, createdAt
+└── GET    /me/stats                             [done]     work and artist counts by status (every status present, 0 if none)
 
 /auth                                                       anonymous; all other endpoints require a token
 ├── POST   /auth/google                          [done]     sign in with a Google ID token, issue tokens (creates the user on first sign-in)
@@ -54,7 +57,8 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
   separate `GET /artists/lookup`.
   `GET /works/lookup` resolves the artist by `artistExternalId` independently of the work,
   so a new, unsaved work by an artist I follow still reports the artist's status.
-- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`, `auth.http`).
+- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`, `auth.http`, `me.http`, `images.http`).
+- `GET /me` returns `401` (not `404`) if the token is valid but the user no longer exists: the client should sign in again.
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
 - List filters are optional and combined with AND; no filter means no restriction.
@@ -84,3 +88,23 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
   `Jwt:SigningKey` lives in User Secrets (production: env var `Jwt__SigningKey`), never in `appsettings.json`.
   Google client ids are public and live in `appsettings.json`.
 - Manual tests: run `POST /auth/dev` first in each `.http` file; `auth.http` covers rotation, reuse detection and logout.
+
+## Image proxy
+
+Pixiv serves `i.pximg.net` (thumbnails, avatars) only with `Referer: https://www.pixiv.net/` (`403` otherwise),
+so the site cannot use those URLs in `<img>` directly. `GET /images?url=<encoded image URL>` fetches the image
+with the right `Referer` and streams it back.
+
+- **Anonymous.** `<img src>` cannot send `Authorization`. The remaining risk is that anyone can load Pixiv images
+  through the API (bandwidth only). If that becomes a problem: rate limiting or signed URLs (`exp` + HMAC `sig`).
+- **SSRF protection.** The URL must be absolute `https`, on the default port, with a host from the allowlist
+  (exact match after parsing, so `https://i.pximg.net@evil.com/` is rejected). The `HttpClient` does not follow
+  redirects, which would otherwise bypass the allowlist. Only `image/*` responses are passed through.
+- **Allowlist** lives in `GetImage.AllowedHosts`: host → `Referer` to send (`null` for none). Add a platform's image
+  host there.
+- **Responses:** `200` with the upstream `Content-Type` and `Cache-Control: public, max-age=604800, immutable`
+  (Pixiv image URLs contain the upload date and never change); `400` invalid or not allowed URL; `404` not found
+  upstream; `502` upstream error or not an image; `504` upstream timeout (10 s).
+- The image is streamed, not buffered: the upstream response is disposed after the client response is sent
+  (`RegisterForDispose`).
+- Usage from the site: `${apiUrl}/images?url=${encodeURIComponent(work.thumbnailUrl)}`.

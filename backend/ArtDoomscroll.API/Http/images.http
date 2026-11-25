@@ -1,0 +1,40 @@
+@baseUrl = http://localhost:5256
+
+# Anonymous endpoint: no sign-in needed. The url parameter must be URL-encoded.
+# Replace @thumb with a thumbnailUrl from GET /works if this one stops working.
+@thumb = https%3A%2F%2Fi.pximg.net%2Fc%2F540x540_70%2Fimg-master%2Fimg%2F2026%2F05%2F06%2F11%2F56%2F24%2F144433235_p0_master1200.jpg
+
+### ============================================================
+### GetImage — allowed
+### ============================================================
+
+### Real Pixiv thumbnail — expect 200, image/jpeg, Cache-Control: public, max-age=604800, immutable
+GET {{baseUrl}}/images?url={{thumb}}
+
+### Allowed host, missing file — expect 404
+GET {{baseUrl}}/images?url=https%3A%2F%2Fi.pximg.net%2Fimg-master%2Fimg%2F2026%2F05%2F06%2F11%2F56%2F24%2F0_missing_master1200.jpg
+
+### ============================================================
+### GetImage — rejected with 400 (url)
+### ============================================================
+
+### Missing url
+GET {{baseUrl}}/images
+
+### Other host
+GET {{baseUrl}}/images?url=https%3A%2F%2Fexample.com%2Fa.jpg
+
+### http instead of https
+GET {{baseUrl}}/images?url=http%3A%2F%2Fi.pximg.net%2Fa.jpg
+
+### Non-default port
+GET {{baseUrl}}/images?url=https%3A%2F%2Fi.pximg.net%3A8080%2Fa.jpg
+
+### Userinfo trick: the host is example.com, not i.pximg.net
+GET {{baseUrl}}/images?url=https%3A%2F%2Fi.pximg.net%40example.com%2Fa.jpg
+
+### Host that only contains i.pximg.net
+GET {{baseUrl}}/images?url=https%3A%2F%2Fevil-i.pximg.net.example.com%2Fa.jpg
+
+### Not a URL
+GET {{baseUrl}}/images?url=not-a-url

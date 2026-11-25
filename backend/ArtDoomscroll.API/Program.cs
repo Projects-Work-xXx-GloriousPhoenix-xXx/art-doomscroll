@@ -4,6 +4,7 @@ using ArtDoomscroll.API.Errors;
 using ArtDoomscroll.API.Features.Artists;
 using ArtDoomscroll.API.Features.Authentication;
 using ArtDoomscroll.API.Features.Library;
+using ArtDoomscroll.API.Features.Me;
 using ArtDoomscroll.API.Features.Works;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
+using ArtDoomscroll.API.Features.Images;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +46,13 @@ builder.Services.AddDbContext<AppDoomscrollDbContext>(options =>
 
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddHttpClient(GetImage.ClientName, client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("art-doomscroll/1.0");
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
@@ -114,5 +123,10 @@ LookupLibrary.Map(app);
 AuthGoogle.Map(app);
 RefreshSession.Map(app);
 Logout.Map(app);
+
+GetMe.Map(app);
+GetMyStats.Map(app);
+
+GetImage.Map(app);
 
 app.Run();

@@ -1,0 +1,31 @@
+@baseUrl = http://localhost:5256
+
+### ============================================================
+### Auth — run first. Access token lives 15 min: re-run on 401.
+### ============================================================
+
+### Dev sign-in (Development only)
+# @name dev
+POST {{baseUrl}}/auth/dev
+
+### ============================================================
+### GetMe
+### ============================================================
+
+### Current user — expect 200 with id, displayName, email, avatarUrl, createdAt (dev user: Dev User, dev@localhost)
+GET {{baseUrl}}/me
+Authorization: Bearer {{dev.response.body.$.accessToken}}
+
+### No token — expect 401
+GET {{baseUrl}}/me
+
+### ============================================================
+### GetMyStats
+### ============================================================
+
+### Counts by status — expect 200; every status key present, missing ones as 0
+GET {{baseUrl}}/me/stats
+Authorization: Bearer {{dev.response.body.$.accessToken}}
+
+### No token — expect 401
+GET {{baseUrl}}/me/stats
