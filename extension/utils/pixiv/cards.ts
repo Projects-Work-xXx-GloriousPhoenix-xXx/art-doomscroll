@@ -2,8 +2,8 @@ import { createQuickButton, type QuickButton } from '@/components/quick-button/q
 import { queueWork, unqueueWork, queueArtist, unqueueArtist, lookupLibrary } from '@/utils/actions';
 import { fetchWork, fetchArtist, getArtworkId  } from '@/utils/pixiv/api';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { getState, setState, subscribe } from '@/utils/state';
 import { onLibraryChange, type LibraryChange } from '@/utils/library-events';
+import { currentArtist, getState, setState, subscribe } from '@/utils/state';
 
 // Pixiv DOM: analytics attributes, more stable than generated classes. May break on Pixiv redesigns.
 const WORK_LINK_SELECTOR = 'a[href*="/artworks/"]';
@@ -52,12 +52,12 @@ export function observeRecommendations(ctx: ContentScriptContext) {
     });
 
     let wasSignedOut = getState().signedOut;
-    let currentArtist = getState().work?.artist.externalId;
+    let pageArtist = currentArtist(getState())?.artist.externalId;
 
     const unsubscribe = subscribe((s) => {
-        const artist = s.work?.artist.externalId;
-        if (artist !== currentArtist) {
-            currentArtist = artist;
+        const artist = currentArtist(s)?.artist.externalId;
+        if (artist !== pageArtist) {
+            pageArtist = artist;
             if (artist) unbindArtist(artist);
         }
 
@@ -138,7 +138,7 @@ function injectWorkButtons(pending: Pending) {
 }
 
 function injectArtistButtons(pending: Pending) {
-    const currentArtistId = getState().work?.artist.externalId;
+    const currentArtistId = currentArtist(getState())?.artist.externalId;
 
     document.querySelectorAll<HTMLButtonElement>(FOLLOW_SELECTOR).forEach((followButton) => {
         const row = followButton.parentElement;

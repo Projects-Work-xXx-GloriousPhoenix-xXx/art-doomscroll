@@ -1,5 +1,10 @@
 import type { Platform } from "../types";
 
+export function getUserId(url: string): string | null {
+    const match = new URL(url).pathname.match(/^\/(?:en\/)?users\/(\d+)/);
+    return match?.[1] ?? null;
+}
+
 export function getArtworkId(url: string): string | null {
     const match = new URL(url).pathname.match(/^\/(?:en\/)?artworks\/(\d+)/);
     return match?.[1] ?? null;
