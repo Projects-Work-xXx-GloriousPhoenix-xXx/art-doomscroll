@@ -4,6 +4,7 @@ using ArtDoomscroll.API.Errors;
 using ArtDoomscroll.API.Features.Artists;
 using ArtDoomscroll.API.Features.Authentication;
 using ArtDoomscroll.API.Features.Library;
+using ArtDoomscroll.API.Features.Me;
 using ArtDoomscroll.API.Features.Works;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -114,5 +115,8 @@ LookupLibrary.Map(app);
 AuthGoogle.Map(app);
 RefreshSession.Map(app);
 Logout.Map(app);
+
+GetMe.Map(app);
+GetMyStats.Map(app);
 
 app.Run();

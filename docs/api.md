@@ -25,8 +25,8 @@
            { platform, works: [externalId], artists: [externalId] }  max 100 each; response maps externalId → { id, status }
 
 /me
-├── GET    /me                                   [backlog]  current user
-└── GET    /me/stats                             [backlog]  stats: artist and work counts by status
+├── GET    /me                                   [done]     current user: id, displayName, email, avatarUrl, createdAt
+└── GET    /me/stats                             [done]     work and artist counts by status (every status present, 0 if none)
 
 /auth                                                       anonymous; all other endpoints require a token
 ├── POST   /auth/google                          [done]     sign in with a Google ID token, issue tokens (creates the user on first sign-in)
@@ -54,7 +54,8 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
   separate `GET /artists/lookup`.
   `GET /works/lookup` resolves the artist by `artistExternalId` independently of the work,
   so a new, unsaved work by an artist I follow still reports the artist's status.
-- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`, `auth.http`).
+- Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`, `auth.http`, `me.http`).
+- `GET /me` returns `401` (not `404`) if the token is valid but the user no longer exists: the client should sign in again.
 - Re-saving an existing artist or work never resets its status; status changes only when `status` is passed explicitly.
 - `POST` returns `201 Created` for a new entry in the user's library, `200 OK` if it was already there.
 - List filters are optional and combined with AND; no filter means no restriction.
