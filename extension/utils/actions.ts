@@ -1,9 +1,9 @@
 import { sendMessage, type AddArtistResult, type LookupLibraryResult, type SaveWorkResult } from '@/utils/messaging';
 import type { ArtistStatus, Platform, WorkStatus } from '@/utils/types';
-import { getState, isBusy, setState } from '@/utils/state';
 import type { WorkPayload } from '@/utils/pixiv/api';
 import { isNotSignedIn } from '@/utils/errors';
 import { emitLibraryChange } from '@/utils/library-events';
+import { currentArtist, getState, isBusy, setState } from '@/utils/state';
 
 const LOOKUP_CHUNK = 100;
 
@@ -38,27 +38,31 @@ export async function setWorkStatus(status: WorkStatus) {
 }
 
 export async function setArtistStatus(status: ArtistStatus) {
-    const { work, artist, signedOut } = getState();
-    if (!work || signedOut || isBusy(artist)) return;
-    if (artist.kind === 'saved' && artist.status === status) return;
+    const s = getState();
+    const target = currentArtist(s);
+    if (!target || s.signedOut || isBusy(s.artist)) return;
+    if (s.artist.kind === 'saved' && s.artist.status === status) return;
 
-    const artistId = artist.kind === 'saved' ? artist.artistId : null;
+    const externalId = target.artist.externalId;
+    const isStale = () => currentArtist(getState())?.artist.externalId !== externalId;
+
+    const artistId = s.artist.kind === 'saved' ? s.artist.artistId : null;
     setState({ artist: { kind: 'saving', status } });
 
     try {
         if (artistId !== null) {
             const result = await sendMessage('updateArtistStatus', { artistId, status });
-            emitLibraryChange({ kind: 'artist', externalId: work.artist.externalId, status: result.newStatus }); 
-            if (getState().work?.externalId !== work.externalId) return;
+            emitLibraryChange({ kind: 'artist', externalId, status: result.newStatus });
+            if (isStale()) return;
             setState({ artist: { kind: 'saved', artistId, status: result.newStatus } });
         } else {
-            const result = await sendMessage('addArtist', { platform: work.platform, artist: work.artist, status });
-            emitLibraryChange({ kind: 'artist', externalId: work.artist.externalId, status: result.status }); 
-            if (getState().work?.externalId !== work.externalId) return;
+            const result = await sendMessage('addArtist', { platform: target.platform, artist: target.artist, status });
+            emitLibraryChange({ kind: 'artist', externalId, status: result.status });
+            if (isStale()) return;
             setState({ artist: { kind: 'saved', artistId: result.artistId, status: result.status } });
         }
     } catch (e) {
-        if (getState().work?.externalId !== work.externalId) return;
+        if (isStale()) return;
         if (isNotSignedIn(e)) {
             setState({ signedOut: true, artist: { kind: 'none' } });
             return;
@@ -110,17 +114,22 @@ export async function removeWork() {
 }
 
 export async function removeArtist() {
-    const { work, artist } = getState();
-    if (!work || artist.kind !== 'saved') return;
+    const s = getState();
+    const target = currentArtist(s);
+    if (!target || s.artist.kind !== 'saved') return;
 
-    const artistId = artist.artistId;
+    const externalId = target.artist.externalId;
+    const isStale = () => currentArtist(getState())?.artist.externalId !== externalId;
+
+    const artistId = s.artist.artistId;
     setState({ artist: { kind: 'removing' } });
+
     try {
-        await unqueueArtist(work.artist.externalId, artistId);
-        if (getState().work?.externalId !== work.externalId) return;
+        await unqueueArtist(externalId, artistId);
+        if (isStale()) return;
         setState({ artist: { kind: 'none' } });
     } catch (e) {
-        if (getState().work?.externalId !== work.externalId) return;
+        if (isStale()) return;
         if (isNotSignedIn(e)) {
             setState({ signedOut: true, artist: { kind: 'none' } });
             return;

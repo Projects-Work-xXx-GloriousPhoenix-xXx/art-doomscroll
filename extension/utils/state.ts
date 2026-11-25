@@ -17,15 +17,33 @@ export type ArtistState =
     | { kind: 'error'; message: string }
     | { kind: 'removing' };
 
+export interface ArtistTarget {
+    platform: Platform;
+    artist: WorkPayload['artist'];
+}
+
 export interface PageState {
     work: WorkPayload | null;
+    profile: ArtistTarget | null;
     save: SaveState;
     artist: ArtistState;
     signedOut: boolean;
 }
 
-let state: PageState = { work: null, save: { kind: 'idle' }, artist: { kind: 'none' }, signedOut: false };
+let state: PageState = { 
+    work: null, 
+    profile: null, 
+    save: { kind: 'idle' }, 
+    artist: { kind: 'none' }, 
+    signedOut: false
+};
+
 const listeners = new Set<(s: PageState) => void>();
+
+export function currentArtist(s: PageState): ArtistTarget | null {
+    if (s.work) return { platform: s.work.platform, artist: s.work.artist };
+    return s.profile;
+}
 
 export function getState(): PageState {
     return state;

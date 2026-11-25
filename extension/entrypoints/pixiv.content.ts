@@ -1,5 +1,5 @@
 import { handleHotkey } from "@/utils/hotkeys";
-import { fetchWork, getArtworkId, type WorkPayload } from "@/utils/pixiv/api";
+import { fetchArtist, fetchWork, getArtworkId, getUserId, type WorkPayload } from "@/utils/pixiv/api";
 import { handleFacadeClick } from "@/utils/pixiv/facade";
 import { createPanel } from "@/components/panel/panel";
 import { observeRecommendations } from "@/utils/pixiv/cards";
@@ -7,6 +7,7 @@ import { storage } from 'wxt/utils/storage';
 import { isNotSignedIn } from '@/utils/errors';
 import { sendMessage, type LookupWorkResult } from "@/utils/messaging";
 import { getState, setState } from "@/utils/state";
+import { lookupLibrary } from "@/utils/actions";
 
 export default defineContentScript({
     matches: ['*://www.pixiv.net/*'],
@@ -37,9 +38,16 @@ export default defineContentScript({
 });
 
 async function handleChangeLocation(url: string) {
+    const userId = getUserId(url);
+    if (userId) {
+        await handleProfile(userId);
+        return;
+    }
+
+
     const id = getArtworkId(url);
     if (!id) {
-        setState({ work: null, save: { kind: 'idle' }, artist: { kind: 'none' } });
+        setState({ work: null, profile: null, save: { kind: 'idle' }, artist: { kind: 'none' } });
         return;
     }
 
@@ -49,17 +57,17 @@ async function handleChangeLocation(url: string) {
     }
     catch {
         if (getArtworkId(location.href) !== id) return;
-        setState({ work: null });
+        setState({ work: null, profile: null });
         return;
     }
 
     if (getArtworkId(location.href) !== id) return;
     if (getState().signedOut) {
-        setState({ work, save: { kind: 'idle' }, artist: { kind: 'none' } });
+        setState({ work, profile: null, save: { kind: 'idle' }, artist: { kind: 'none' } });
         return;
     }
 
-    setState({ work, save: { kind: 'checking' }, artist: { kind: 'checking' } });
+    setState({ work, profile: null, save: { kind: 'checking' }, artist: { kind: 'checking' } });
 
     let result: LookupWorkResult;
     try {
@@ -89,4 +97,37 @@ async function handleChangeLocation(url: string) {
             ? { kind: 'saved', artistId: result.artist.artistId, status: result.artist.status }
             : { kind: 'none' },
     })
+}
+
+async function handleProfile(userId: string) {
+    let artist: WorkPayload['artist'];
+    try {
+        artist = await fetchArtist(userId);
+    } catch {
+        if (getUserId(location.href) !== userId) return;
+        setState({ work: null, profile: null });
+        return;
+    }
+
+    if (getUserId(location.href) !== userId) return;
+    const profile = { platform: 'Pixiv' as const, artist };
+
+    if (getState().signedOut) {
+        setState({ work: null, profile, save: { kind: 'idle' }, artist: { kind: 'none' } });
+        return;
+    }
+    setState({ work: null, profile, save: { kind: 'idle' }, artist: { kind: 'checking' } });
+
+    try {
+        const result = await lookupLibrary('Pixiv', [], [userId]);
+        if (getUserId(location.href) !== userId) return;
+        const found = result.artists[userId];
+        setState({
+            signedOut: false,
+            artist: found ? { kind: 'saved', artistId: found.artistId, status: found.status } : { kind: 'none' },
+        });
+    } catch (e) {
+        if (getUserId(location.href) !== userId) return;
+        setState({ artist: { kind: 'none' }, ...(isNotSignedIn(e) ? { signedOut: true } : {}) });
+    }
 }

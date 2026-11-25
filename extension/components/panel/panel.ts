@@ -2,8 +2,8 @@ import '@/components/panel/panel.css';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ArtistStatus, WorkStatus } from '@/utils/types';
 import { bindings, describeBinding } from '@/utils/hotkeys';
-import { type ArtistState, type PageState, type SaveState, isBusy, subscribe } from '@/utils/state';
 import { toggleArtistStatus, toggleWorkStatus } from '@/utils/actions';
+import { type ArtistState, type PageState, type SaveState, currentArtist, isBusy, subscribe } from '@/utils/state';
 
 export async function createPanel(ctx: ContentScriptContext) {
     const ui = await createShadowRootUi(ctx, {
@@ -56,22 +56,26 @@ export async function createPanel(ctx: ContentScriptContext) {
     let mounted = false;
 
     function render(s: PageState) {
-        if (!s.work) {
+        const target = currentArtist(s);
+        if (!target) {
             if (mounted) { ui.remove(); mounted = false; }
             return;
         }
-
-        if (!mounted) { 
-            ui.mount(); mounted = true;
-        }
+        if (!mounted) { ui.mount(); mounted = true; }
 
         const root = ui.uiContainer;
-        root.querySelector('.title')!.textContent = s.work.title ?? '(untitled)';
-        const name = s.work.artist.displayName ?? s.work.artist.externalId;
-        root.querySelector('.artist')!.textContent = `by ${name}`;
+        const name = target.artist.displayName ?? target.artist.externalId;
+
+        if (s.work) {
+            root.querySelector('.title')!.textContent = s.work.title ?? '(untitled)';
+            root.querySelector('.artist')!.textContent = `by ${name}`;
+        } else {
+            root.querySelector('.title')!.textContent = name;
+            root.querySelector('.artist')!.textContent = target.artist.handle ? `@${target.artist.handle}` : '';
+        }
 
         root.querySelector<HTMLElement>('.artist-actions')!.hidden = s.signedOut;
-        root.querySelector<HTMLElement>('.actions')!.hidden = s.signedOut;
+        root.querySelector<HTMLElement>('.actions')!.hidden = s.signedOut || !s.work;
         root.querySelector<HTMLElement>('.signin-hint')!.hidden = !s.signedOut;
 
         const current = s.save.kind === 'saved' || s.save.kind === 'saving' ? s.save.status : null;

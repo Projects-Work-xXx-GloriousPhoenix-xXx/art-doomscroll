@@ -1,7 +1,7 @@
 import { queueArtist, queueWork, setArtistStatus, setWorkStatus } from '@/utils/actions';
 import { fetchArtist, fetchWork, getArtworkId } from '@/utils/pixiv/api';
-import { getState } from '@/utils/state';
 import type { ArtistStatus, WorkStatus } from '@/utils/types';
+import { currentArtist, getState } from '@/utils/state';
 
 // Pixiv DOM: analytics attributes, more stable than generated classes. May break on Pixiv redesigns.
 const BOOKMARK_SELECTOR = 'button.gtm-main-bookmark';
@@ -44,7 +44,7 @@ function trackWork(id: string, status: WorkStatus) {
 }
 
 function trackArtist(userId: string, status: ArtistStatus) {
-    if (userId === getState().work?.artist.externalId) {
+    if (userId === currentArtist(getState())?.artist.externalId) {
         setArtistStatus(status);
         return;
     }

@@ -9,8 +9,7 @@
 ├── PATCH  /artists/{id}/note                    [done]     set or clear my note on artist (null or empty clears, max 1024 chars)
 ├── DELETE /artists/{id}                         [done]     remove artist from my library (deletes UserArtist, not Artist)
 ├── POST   /artists/{id}/profiles                [backlog]  attach a profile from another platform to this artist
-├── POST   /artists/{id}/merge/{otherId}         [backlog]  merge two artists into one
-└── GET    /artists/lookup?platform=&externalId= [backlog]  "do I already have this profile?" (for the extension)
+└── POST   /artists/{id}/merge/{otherId}         [backlog]  merge two artists into one
 
 /works
 ├── POST   /works                                [done]     save work (profile + Work + UserWork, no UserArtist)
@@ -51,6 +50,8 @@ Legend: `[done]` implemented, `[wip]` in progress, `[mvp]` required for MVP, `[b
   `POST /library/lookup` returns only the entries found: a missing key means "not in my library".
   Ids are matched per platform; blanks and duplicates are ignored. Artists are matched by profile `externalId`
   and return the status of the artist that profile belongs to.
+  It also serves single lookups (the extension's artist profile panel sends one artist), so there is no
+  separate `GET /artists/lookup`.
   `GET /works/lookup` resolves the artist by `artistExternalId` independently of the work,
   so a new, unsaved work by an artist I follow still reports the artist's status.
 - Manual test requests live in `backend/ArtDoomscroll.API/Http/` (`artists.http`, `works.http`, `library.http`, `auth.http`).
