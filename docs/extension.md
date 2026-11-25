@@ -5,6 +5,7 @@ Currently supports Pixiv:
 
 - **Panel** on an artwork page (`/artworks/{id}`, `/en/artworks/{id}`): the work and its artist,
   their status in my library, buttons to set or remove both.
+  On an artist profile (`/users/{id}` and its tabs): the artist only.
 - **Hotkeys** for the same actions.
 - **Facade**: Pixiv's own bookmark and Follow buttons (on the artwork and in carousels) also save to my library.
 - **Later buttons** on work thumbnails and artist cards anywhere on Pixiv (recommendations, author's works,
@@ -19,6 +20,16 @@ Currently supports Pixiv:
 │ [ ⏱ Later ] [ ♥ Like ] [ ✕ Dislike ]  ⚠  │   work:   Queued / Liked / Disliked
 └──────────────────────────────────────────┘
                                          ◌ request in progress, ⚠ error (hover for details)
+```
+
+On a profile page the title is the artist's name, the second line `@handle`, and only the artist row is shown:
+
+```text
+┌──────────────────────────────────────────┐
+│ Artist B                              ⌨  │
+│ @artist_b                                │
+│ [ ⏱ Later ] [ ★ Follow ] [ ✓ Seen ]      │
+└──────────────────────────────────────────┘
 ```
 
 Signed out, the panel still shows the title and artist (they come from Pixiv), but the button rows are replaced
@@ -92,7 +103,7 @@ Pixiv page                                          Extension
 
 | File | Role |
 |---|---|
-| `entrypoints/pixiv.content.ts` | Pixiv content script: wires everything up, tracks SPA navigation, runs lookup, fills state |
+| `entrypoints/pixiv.content.ts` | Pixiv content script: wires everything up, tracks SPA navigation, runs lookup for an artwork or a profile, fills state |
 | `entrypoints/background.ts` | Message handlers; the only place that calls the API |
 | `entrypoints/popup/` | Popup: account, sign in, sign out |
 | `utils/auth.ts` | Background only: `signIn`, `signOut`, `getUser`, `apiFetch` (token, refresh, retry) |
@@ -113,12 +124,12 @@ Actions:
 
 | Action | Used by | Does |
 |---|---|---|
-| `setWorkStatus`, `setArtistStatus` | hotkeys, facade | set status on the current page (POST if not saved, PATCH if saved) |
+| `setWorkStatus`, `setArtistStatus` | hotkeys, facade | set status on the current page (POST if not saved, PATCH if saved); the artist is `currentArtist(state)` |
 | `toggleWorkStatus`, `toggleArtistStatus` | panel | like `set*`, but clicking the active status calls `remove*` |
 | `removeWork`, `removeArtist` | `toggle*` | DELETE from the library, state back to `idle` / `none` |
 | `queueWork`, `queueArtist` | cards, facade | POST (status optional: cards send none, facade sends one), return the full result; do not touch page state |
 | `unqueueWork`, `unqueueArtist` | cards, `remove*` | DELETE by id; take the `externalId` too, for the change event |
-| `lookupLibrary` | cards | batch lookup by external ids, split into chunks of 100, results merged |
+| `lookupLibrary` | cards, profile page | batch lookup by external ids, split into chunks of 100, results merged |
 
 Every action that changes the library emits a library change (`{ kind, externalId, status | null }`) once the API
 has answered, and before the "still on the same work" check: cards need it even if the user has navigated away.
@@ -137,7 +148,10 @@ Key decisions:
 - **Work and artist are independent.** `SaveState` and `ArtistState` are separate discriminated unions,
   so both rows can be busy at the same time, each with its own progress and error.
 - **Stale responses are dropped.** After every `await` (success or failure) the code checks that the user is still
-  on the same work (`getArtworkId(location.href)` or `getState().work?.externalId`) before writing state.
+  on the same page before writing state: the same work for work state (`getArtworkId(location.href)`,
+  `getState().work?.externalId`), the same artist for artist state (`currentArtist(getState())`), the same profile
+  while loading it (`getUserId(location.href)`). Artist actions compare the artist, not the work, so a response
+  still applies after moving to another work by the same artist.
 - **Shadow DOM everywhere we inject UI.** The panel uses `createShadowRootUi` (`cssInjectionMode: 'ui'`);
   quick buttons attach their own shadow root and load styles with `?inline`, because CSS imported normally
   is bundled into the panel's shadow root only.
@@ -145,10 +159,14 @@ Key decisions:
 ### State
 
 ```ts
+PageState   = { work, profile, save, artist, signedOut }
 SaveState   = checking | idle | saving { status } | saved { workId, status }   | removing | error { message }
 ArtistState = checking | none | saving { status } | saved { artistId, status } | removing | error { message }
 ```
 
+- `work` is set on an artwork page, `profile` (`{ platform, artist }`) on a profile page; never both.
+  `currentArtist(state)` returns the page's artist from either; the panel, artist actions, cards and the facade
+  use it instead of `work.artist`.
 - `idle` / `none` mean "not in my library".
 - `saving` carries the target status so its button is highlighted immediately (optimistic highlight);
   on error the highlight is dropped.
@@ -171,20 +189,35 @@ from the illust fields without an avatar, so saving still works.
 1. `main` asks the background `getUser` and sets `signedOut`, then creates the panel, starts card observation,
    registers hotkeys and the facade, and calls `handleChangeLocation(location.href)`;
    `wxt:locationchange` calls it again on SPA navigation.
-2. Not an artwork URL: `work: null`, panel is removed.
-3. `fetchWork(id)`; on failure `work: null`.
-4. Signed out: `work` set, `save` / `artist` to `idle` / `none`, no API request; the panel shows the hint.
-5. Otherwise `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner), then
+2. Profile URL: see [Profile page](#profile-page) below.
+3. Neither artwork nor profile: `work: null`, `profile: null`, panel is removed.
+4. `fetchWork(id)`; on failure `work: null`.
+5. Signed out: `work` set, `save` / `artist` to `idle` / `none`, no API request; the panel shows the hint.
+6. Otherwise `work` set, `save` and `artist` set to `checking` (buttons disabled, spinner), then
    `lookupWork` → `GET /works/lookup?platform=&externalId=&artistExternalId=`:
    - `save`: `saved` if the work is in my library, otherwise `idle`;
    - `artist`: `saved` if the artist is in my library, otherwise `none`.
    - On `NotSignedInError`: `signedOut: true`, the panel shows the sign-in hint.
    - On any other failure both fall back to `idle` / `none`, so saving is still possible.
    - On success: `signedOut: false`.
-6. Signing in or out in the popup changes `local:session`; the content script watches it (`storage.watch`) and
+7. Signing in or out in the popup changes `local:session`; the content script watches it (`storage.watch`) and
    reacts only when the session appears or disappears, not on token refresh: sign in sets `signedOut: false`
    (on any page, not only artworks) and reruns `handleChangeLocation`, sign out sets `signedOut: true`.
    An expired session is covered too: a failed refresh removes it from storage. No page reload needed.
+
+### Profile page
+
+`getUserId(url)` matches `/users/{id}` and `/en/users/{id}` with any tab (`/artworks`, `/bookmarks/...`):
+every tab is the same artist. `handleProfile(userId)`:
+
+1. `fetchArtist(userId)`; on failure `work: null`, `profile: null`.
+2. `profile` set, `work: null`, `save: idle`. Signed out: `artist: none`, no API request.
+3. Otherwise `artist: checking`, then `lookupLibrary('Pixiv', [], [userId])` (`POST /library/lookup`):
+   `saved` if found, otherwise `none`; `NotSignedInError` sets `signedOut: true`.
+
+No dedicated `GET /artists/lookup`: the batch endpoint already answers for one artist.
+Work hotkeys (`Q`, `L`, `D`) do nothing on a profile (no work); artist hotkeys work. The profile owner's Follow
+on Pixiv goes through the facade into `setArtistStatus`, so the panel updates; cards put no Later button next to it.
 
 ### Panel buttons
 
@@ -222,7 +255,8 @@ Capture-phase click listener on `document`; Pixiv's own action still happens (no
 | Bookmark on a carousel card | `[data-ga4-label="bookmark_button"] button` | `Liked` if not bookmarked yet, `Disliked` if the bookmark is being removed |
 | Follow of any user | `button[data-click-label="follow"]`, user id from `data-gtm-user-id` | `Watching` if `data-variant="Primary"`, otherwise `Seen` |
 
-- **Current work and artist** go through `setWorkStatus` / `setArtistStatus`, so the panel updates.
+- **Current work and the page's artist** (`currentArtist`: the work's author or the profile owner) go through
+  `setWorkStatus` / `setArtistStatus`, so the panel updates.
   Others are saved with `queueWork` / `queueArtist` and an explicit status, without touching page state.
 - **Card work id**: the nearest `a[href*="/artworks/"]` found by walking up at most 4 levels from the bookmark
   button (further up would reach the carousel container and pick another card's link).
@@ -253,11 +287,12 @@ Buttons are removed rather than hidden, so no stale status or undo from the prev
 | Target | Found by | Button | Click |
 |---|---|---|---|
 | Work thumbnail | `a[href*="/artworks/"]` containing `img` or `figure` (lazy placeholder), at least 64px wide | top-left corner of the link's parent | `queueWork(await fetchWork(id))` |
-| Artist card | `button[data-click-label="follow"]`, except the current work's author | right after the Follow button | `queueArtist('Pixiv', await fetchArtist(id))` |
+| Artist card | `button[data-click-label="follow"]`, except the page's artist (work author or profile owner) | right after the Follow button | `queueArtist('Pixiv', await fetchArtist(id))` |
 
 - **Small links are skipped** (event icons such as the "Fall leaves effect" badge link to an artwork with an image
   inside). Width 0 means not laid out yet, so such links are not skipped and get no marker until checked again.
-- **The current work's author gets no button**: the panel's artist row owns it. `currentArtistId` comes from state,
+- **The page's artist gets no button** (`currentArtist`: the current work's author or the profile owner): the panel's
+  artist row owns it. `currentArtistId` comes from state,
   which is set after `fetchWork`, so a scan right after navigation can still inject one. A state subscription removes
   the current author's buttons (`unbindArtist`) whenever the current work changes; the button may flash briefly.
 
@@ -391,13 +426,9 @@ Background handlers, actions, state and components need no changes.
 - Pixiv selectors rely on analytics attributes (`gtm-*`, `data-click-label`, `data-ga4-label`); a Pixiv redesign
   can break the facade and cards. See [pixiv-dependencies.md](pixiv-dependencies.md) for every selector,
   internal endpoint and assumption, with a triage table.
-- Changing an artist's status and immediately opening another work by the same artist may drop the response;
-  the highlight is wrong until the next navigation. The data on the backend is correct.
 - While the Google app is in Testing mode, only its test users can sign in.
 - Pixiv images (`i.pximg.net`, thumbnails and avatars) require a `Referer` header; the site will need an image proxy.
-- The panel appears only on artwork pages; artist profile pages (`/users/{id}`) have Later buttons only.
 
 ## Roadmap
 
-- `GET /artists/lookup` and a panel on artist profile pages.
 - More platforms (X).

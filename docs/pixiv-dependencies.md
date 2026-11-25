@@ -23,6 +23,8 @@ Shared code (`actions`, `state`, `messaging`, `background`, `components`) does n
 | Later button shows another work's / author's status after navigation | Pixiv reuses DOM differently (new attribute carries the id) | `attributeFilter` in `observeRecommendations`, `DONE_ATTR` rebinding in `cards.ts` |
 | Later buttons on small icons, or missing on small thumbnails | thumbnail or icon sizes changed | `MIN_THUMB_SIZE` in `cards.ts` |
 | Panel does not update after navigating between works | SPA navigation detection | `wxt:locationchange` in `entrypoints/pixiv.content.ts` |
+| No panel on an artist profile | profile URL format changed | `getUserId` regex in `utils/pixiv/api.ts` |
+| Profile panel appears, but stays empty / disappears | `/ajax/user` response changed or fails | `fetchArtist`, `PixivUser` in `utils/pixiv/api.ts` |
 
 ## Internal API
 
@@ -32,7 +34,7 @@ They are undocumented and can change without notice.
 | Endpoint | Used in | Fields we read |
 |---|---|---|
 | `GET /ajax/illust/{id}` | `fetchWork` | `error`, `message`, `body.illustId`, `illustTitle`, `userId`, `userName`, `userAccount`, `urls.small`, `urls.thumb` |
-| `GET /ajax/user/{id}?full=0` | `fetchArtist` | `error`, `message`, `body.userId`, `name`, `pixivId` (handle), `imageBig` (170px avatar) |
+| `GET /ajax/user/{id}?full=0` | `fetchArtist` (artwork and profile pages) | `error`, `message`, `body.userId`, `name`, `pixivId` (handle), `imageBig` (170px avatar) |
 
 - Both expect the shape `{ error, message, body }` and throw if `error` is true or the HTTP status is not 2xx.
 - If `/ajax/user` fails, `fetchWork` silently falls back to the illust fields (no avatar). A broken `/ajax/user`
@@ -45,10 +47,11 @@ They are undocumented and can change without notice.
 | What | Pattern | Used in |
 |---|---|---|
 | Artwork page | `/artworks/{id}` or `/en/artworks/{id}` | `getArtworkId` (`api.ts`), regex `^/(?:en/)?artworks/(\d+)` |
+| Artist profile, any tab | `/users/{id}`, `/en/users/{id}`, `/users/{id}/artworks`, ... | `getUserId` (`api.ts`), regex `^/(?:en/)?users/(\d+)` |
 | Content script scope | `*://www.pixiv.net/*` | `matches` in `pixiv.content.ts` |
 
 A new locale prefix (e.g. `/ja/artworks/`) would make `getArtworkId` return `null`: no panel, and thumbnails
-with such links get no Later button.
+with such links get no Later button. The same applies to `getUserId` and profile pages.
 
 ## DOM selectors
 
